@@ -1,0 +1,17 @@
+name: CTA Train Tracker Analytics App CI/CD Pipeline
+
+on:
+  push:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+
+  get_test_coverage:
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
