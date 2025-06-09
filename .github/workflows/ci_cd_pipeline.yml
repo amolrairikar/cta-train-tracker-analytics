@@ -15,3 +15,64 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+  build_lambdas:
+
+    runs-on: ubuntu-latest
+    needs: get_test_coverage
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+  deploy_infrastructure:
+
+    runs-on: ubuntu-latest
+    needs: build_lambdas
+
+    env:
+      S3_STATE_BUCKET_NAME: ${{ secrets.S3_STATE_BUCKET_NAME }}
+      S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
+      TF_VAR_infra_role_arn: ${{ secrets.TF_VAR_INFRA_ROLE_ARN }}
+      TF_VAR_account_number: ${{ secrets.AWS_ACCOUNT_ID }}
+      TF_VAR_email: ${{ secrets.EMAIL }}
+      TF_VAR_environment: "prod"
+      TF_VAR_project_name: "ctaTrainAnalyticsApp"
+      TF_VAR_datalake_bucket_name: ${{ secrets.S3_BUCKET_NAME }}
+      TF_VAR_sns_topic_arn: ${{ secrets.SNS_TOPIC_ARN }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: List files in the root directory
+        run: ls -la
+
+      - name: Set up AWS credentials (using OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.TF_VAR_INFRA_ROLE_ARN }}
+          aws-region: 'us-east-2'
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Initialize Terraform
+        run: |
+          echo "Initializing Terraform..."
+          terraform init \
+            -backend-config="bucket=${S3_STATE_BUCKET_NAME}" \
+            -backend-config="key=cta-train-analytics-app/terraform.tfstate" \
+            -backend-config="region=us-east-2" \
+            -backend-config="assume_role={role_arn=\"${TF_VAR_infra_role_arn}\", session_name=\"terraform-session\"}"
+
+      - name: Plan Terraform
+        run: |
+          echo "Planning Terraform configuration..."
+          terraform plan -out=tfplan
+
+      - name: Apply Terraform
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "Applying Terraform configuration..."
+          terraform apply -auto-approve tfplan
