@@ -25,30 +25,6 @@ module "dynamodb_table" {
     {
       name = "UpdatedTimestamp"
       type = "S"
-    },
-    {
-      name = "DestinationStation"
-      type = "S"
-    },
-    {
-      name = "NextStationName"
-      type = "S"
-    },
-    {
-      name = "PredictionGeneratedTime"
-      type = "S"
-    },
-    {
-      name = "PredictedArrivalTime"
-      type = "S"
-    },
-    {
-      name = "IsApproaching"
-      type = "S"
-    },
-    {
-      name = "IsDelayed"
-      type = "S"
     }
   ]
   enable_ttl        = true
