@@ -93,7 +93,7 @@ module "cta_get_train_status_lambda" {
   lambda_memory_size             = "256"
   lambda_runtime                 = "python3.12"
   lambda_timeout                 = 30
-  lambda_execution_role_arn      = module.lambda_get_recently_played_role.role_arn
+  lambda_execution_role_arn      = module.lambda_get_cta_train_status_execution_role.role_arn
   sns_topic_arn                  = var.sns_topic_arn
     lambda_environment_variables = {
       API_KEY = var.cta_train_tracker_api_key
