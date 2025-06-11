@@ -102,7 +102,7 @@ module "cta_get_train_status_lambda" {
 
 module "sqs_lambda_trigger" {
   source              = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/sqs-lambda-trigger?ref=main"
-  queue_arn           = module.sqs_queue.queue_arn
+  sqs_queue_arn       = module.sqs_queue.queue_arn
   lambda_function_arn = module.cta_get_train_status_lambda.lambda_arn
   trigger_enabled     = true
   batch_size          = 1
