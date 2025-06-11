@@ -55,6 +55,10 @@ jobs:
 
     runs-on: ubuntu-latest
     needs: build_lambdas
+    strategy:
+      matrix:
+        lambda:
+          - name: get_train_status
 
     env:
       S3_STATE_BUCKET_NAME: ${{ secrets.S3_STATE_BUCKET_NAME }}
@@ -71,6 +75,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Download Lambda zip artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.lambda.name }}_lambda_zip
 
       - name: List files in the root directory
         run: ls -la
