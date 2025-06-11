@@ -20,10 +20,36 @@ jobs:
 
     runs-on: ubuntu-latest
     needs: get_test_coverage
+    strategy:
+      matrix:
+        lambda:
+          - name: get_train_status
+            handler_file: get_train_status.py
+            path: lambdas/get_train_status
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install zip
+        run: sudo apt-get update && sudo apt-get install -y zip
+
+      - name: Build Lambda package
+        run: |
+          wget --tries=3 https://raw.githubusercontent.com/amolrairikar/aws-account-infrastructure-setup/refs/heads/main/scripts/build_lambda_package.sh
+          chmod +x ./build_lambda_package.sh
+          ./build_lambda_package.sh "${{ matrix.lambda.name }}" "${{ matrix.lambda.handler_file }}" "${{ matrix.lambda.path }}"
+
+      - name: Upload Lambda zip as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.lambda.name }}_lambda_zip
+          path: ${{ matrix.lambda.path }}/${{ matrix.lambda.name }}.zip
 
   deploy_infrastructure:
 
