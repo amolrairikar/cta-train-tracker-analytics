@@ -12,3 +12,13 @@ variable "project_name" {
   description = "The name of the project (to be used in tags)"
   type        = string
 }
+
+variable "sns_topic_arn" {
+  description = "The ARN of the SNS topic to which Lambda failure notifications are sent"
+  type        = string
+}
+
+variable "cta_train_tracker_api_key" {
+  description = "The API key for the CTA Train Tracker API"
+  type        = string
+}
