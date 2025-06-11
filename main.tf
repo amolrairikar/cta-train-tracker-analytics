@@ -33,7 +33,7 @@ module "application_dynamodb_table" {
 module "sqs_queue" {
   source                     = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/sqs-topic?ref=main"
   queue_name                 = "cta-train-tracker-analytics-lambda-trigger-queue"
-  visibility_timeout_seconds = 60
+  visibility_timeout_seconds = 10
   project                    = var.project_name
   environment                = var.environment
 }
@@ -50,6 +50,16 @@ data "aws_iam_policy_document" "lambda_trust_relationship_policy" {
 }
 
 data "aws_iam_policy_document" "lambda_get_cta_train_status_execution_role_inline_policy_document" {
+  statement {
+    effect    = "Allow"
+    actions = [
+      "sqs:ReceiveMessage",
+      "sqs:DeleteMessage"
+    ]
+    resources = [
+      var.sns_topic_arn
+    ]
+  }
   statement {
     effect    = "Allow"
     actions = [
