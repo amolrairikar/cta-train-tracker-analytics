@@ -33,7 +33,7 @@ module "application_dynamodb_table" {
 module "sqs_queue" {
   source                     = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/sqs-topic?ref=main"
   queue_name                 = "cta-train-tracker-analytics-lambda-trigger-queue"
-  visibility_timeout_seconds = 10
+  visibility_timeout_seconds = 35
   project                    = var.project_name
   environment                = var.environment
 }
