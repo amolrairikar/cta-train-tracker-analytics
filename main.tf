@@ -54,7 +54,8 @@ data "aws_iam_policy_document" "lambda_get_cta_train_status_execution_role_inlin
     effect    = "Allow"
     actions = [
       "sqs:ReceiveMessage",
-      "sqs:DeleteMessage"
+      "sqs:DeleteMessage",
+      "sqs:GetQueueAttributes"
     ]
     resources = [
       module.sqs_queue.queue_arn
