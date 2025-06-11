@@ -57,7 +57,7 @@ data "aws_iam_policy_document" "lambda_get_cta_train_status_execution_role_inlin
       "sqs:DeleteMessage"
     ]
     resources = [
-      var.sns_topic_arn
+      module.sqs_queue.queue_arn
     ]
   }
   statement {
