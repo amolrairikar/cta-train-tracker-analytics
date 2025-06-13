@@ -104,6 +104,7 @@ jobs:
       TF_VAR_email: ${{ secrets.EMAIL }}
       TF_VAR_environment: "prod"
       TF_VAR_project_name: "ctaTrainAnalyticsApp"
+      TF_VAR_aws_region: "us-east-2"
       TF_VAR_datalake_bucket_name: ${{ secrets.S3_BUCKET_NAME }}
       TF_VAR_sns_topic_arn: ${{ secrets.SNS_TOPIC_ARN }}
       TF_VAR_cta_train_tracker_api_key: ${{ secrets.CTA_TRAIN_TRACKER_API_KEY }}
