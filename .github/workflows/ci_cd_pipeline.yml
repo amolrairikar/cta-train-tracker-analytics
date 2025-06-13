@@ -70,13 +70,32 @@ jobs:
           name: ${{ matrix.lambda.name }}_lambda_zip
           path: ${{ matrix.lambda.path }}/${{ matrix.lambda.name }}.zip
 
-  deploy_infrastructure:
+  combine_artifacts:
     runs-on: ubuntu-latest
     needs: build_lambdas
-    strategy:
-      matrix:
-        lambda:
-          - name: get_train_status
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: combined-artifacts
+
+      - name: View files in combined-artifacts directory
+        run: ls -la combined-artifacts
+
+      - name: Move ZIPs to combined folder
+        run: |
+          mkdir combined-zips
+          find combined-artifacts -name '*.zip' -exec mv {} combined-zips/ \;
+
+      - name: Upload combined artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-lambdas
+          path: combined-zips/
+
+  deploy_infrastructure:
+    runs-on: ubuntu-latest
+    needs: combine_artifacts
     env:
       S3_STATE_BUCKET_NAME: ${{ secrets.S3_STATE_BUCKET_NAME }}
       S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
@@ -95,9 +114,10 @@ jobs:
       - name: Download Lambda zip artifacts
         uses: actions/download-artifact@v4
         with:
-          name: ${{ matrix.lambda.name }}_lambda_zip
+          name: all-lambdas
+          path: .
 
-      - name: List files in the root directory
+      - name: View files in root directory
         run: ls -la
 
       - name: Set up AWS credentials (using OIDC)
