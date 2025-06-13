@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "Running unit tests..."
-if ! pipenv run coverage run --source=lambdas -m unittest discover -s tests/unit; then
+if ! pipenv run coverage run --source=lambdas -m unittest discover -s tests/unit -v; then
     echo "Unit tests failed!"
     exit 1
 fi
