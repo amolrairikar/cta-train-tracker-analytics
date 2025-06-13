@@ -5,14 +5,14 @@ if ! pipenv run coverage run --source=lambdas -m unittest discover -s tests/unit
     echo "Unit tests failed!"
     exit 1
 fi
-mv .coverage .coverage.unit  # Move the coverage data to .coverage.unit
+mv .coverage .coverage.unit
 
 echo "Running component tests..."
-if ! pipenv run coverage run --source=lambdas -m unittest discover -s tests/component; then
+if ! pipenv run coverage run --source=lambdas -m unittest discover -s tests/component -v; then
     echo "Component tests failed!"
     exit 1
 fi
-mv .coverage .coverage.component  # Move the coverage data to .coverage.component
+mv .coverage .coverage.component
 
 echo "Combining coverage data..."
 pipenv run coverage combine .coverage.unit .coverage.component
