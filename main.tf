@@ -58,7 +58,8 @@ data "aws_iam_policy_document" "lambda_write_train_lines_execution_role_inline_p
     effect    = "Allow"
     actions = [
       "sqs:SendMessage",
-      "sqs:GetQueueAttributes"
+      "sqs:GetQueueAttributes",
+      "sqs:GetQueueUrl"
     ]
     resources = [
       "arn:aws:sqs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cta-train-tracker-analytics-lambda-trigger-queue"
