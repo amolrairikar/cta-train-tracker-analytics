@@ -123,17 +123,6 @@ module "sqs_queue" {
   environment                = var.environment
 }
 
-data "aws_iam_policy_document" "lambda_trust_relationship_policy" {
-  statement {
-    actions = ["sts:AssumeRole"]
-    effect  = "Allow"
-    principals {
-      type        = "Service"
-      identifiers = ["lambda.amazonaws.com"]
-    }
-  }
-}
-
 data "aws_iam_policy_document" "lambda_get_cta_train_status_execution_role_inline_policy_document" {
   statement {
     effect    = "Allow"
