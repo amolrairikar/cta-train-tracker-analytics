@@ -79,7 +79,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         logger.error('Environment variable SQS_QUEUE_NAME not set: %s', e)
         raise
 
-    sqs = boto3.client('sqs', region_name=os.environ['AWS_REGION'])
+    sqs = boto3.client('sqs', region_name=os.environ['REGION_NAME'])
     queue_url = get_sqs_queue_url(
         sqs_client=sqs,
         queue_name=queue_name

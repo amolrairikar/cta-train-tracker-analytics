@@ -111,7 +111,7 @@ module "cta_write_train_lines_lambda" {
   sns_topic_arn                  = var.sns_topic_arn
     lambda_environment_variables = {
       SQS_QUEUE_NAME = "cta-train-tracker-analytics-lambda-trigger-queue"
-      AWS_REGION     = var.aws_region
+      REGION_NAME     = var.aws_region
   }
 }
 

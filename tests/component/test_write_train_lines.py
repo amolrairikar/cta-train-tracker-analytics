@@ -32,7 +32,7 @@ class TestWriteTrainLines(unittest.TestCase):
             os.environ,
             {
                 'SQS_QUEUE_NAME': 'test-sqs-queue',
-                'AWS_REGION': 'us-east-2'
+                'REGION_NAME': 'us-east-2'
             }
         )
         self.env_patcher.start()
