@@ -96,6 +96,10 @@ module "lambda_write_train_lines_role" {
   project                   = var.project_name
 }
 
+data "aws_lambda_layer_version" "latest_retry_api" {
+  layer_name = "retry_api_exceptions"
+}
+
 module "cta_write_train_lines_lambda" {
   source                         = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/lambda?ref=main"
   environment                    = var.environment
@@ -108,6 +112,7 @@ module "cta_write_train_lines_lambda" {
   lambda_runtime                 = "python3.12"
   lambda_timeout                 = 30
   lambda_execution_role_arn      = module.lambda_write_train_lines_role.role_arn
+  lambda_layers                  = [data.aws_lambda_layer_version.latest_retry_api.arn]
   sns_topic_arn                  = var.sns_topic_arn
     lambda_environment_variables = {
       SQS_QUEUE_NAME = "cta-train-tracker-analytics-lambda-trigger-queue"
