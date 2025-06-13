@@ -1,0 +1,15 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[dev-packages]
+backoff = "*"
+boto3 = "*"
+coverage = "*"
+moto = "*"
+python-dotenv = "*"
+requests = "*"
+
+[requires]
+python_version = "3.12"
