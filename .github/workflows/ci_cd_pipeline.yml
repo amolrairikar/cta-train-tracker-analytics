@@ -46,6 +46,9 @@ jobs:
           - name: get_train_status
             handler_file: get_train_status.py
             path: lambdas/get_train_status
+          - name: write_train_lines
+            handler_file: write_train_lines.py
+            path: lambdas/write_train_lines
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
