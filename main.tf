@@ -10,6 +10,8 @@ provider "aws" {
   }
 }
 
+data "aws_caller_identity" "current" {}
+
 module "application_dynamodb_table" {
   source            = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/dynamodb?ref=main"
   environment       = var.environment
@@ -30,12 +32,14 @@ module "application_dynamodb_table" {
   enable_ttl        = true
 }
 
-module "sqs_queue" {
-  source                     = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/sqs-topic?ref=main"
-  queue_name                 = "cta-train-tracker-analytics-lambda-trigger-queue"
-  visibility_timeout_seconds = 35
-  project                    = var.project_name
-  environment                = var.environment
+module "eventbridge_scheduler" {
+  source               = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/eventbridge-scheduler?ref=main"
+  eventbridge_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/eventbridge-role"
+  lambda_arn           = module.cta_write_train_lines_lambda.lambda_arn
+  schedule_frequency   = "cron(* * * * ? *)"
+  schedule_timezone    = "America/Chicago"
+  schedule_state       = "ENABLED"
+  scheduler_name       = "cta-write-train-lines-eventbridge-scheduler"
 }
 
 data "aws_iam_policy_document" "lambda_trust_relationship_policy" {
@@ -47,6 +51,76 @@ data "aws_iam_policy_document" "lambda_trust_relationship_policy" {
       identifiers = ["lambda.amazonaws.com"]
     }
   }
+}
+
+data "aws_iam_policy_document" "lambda_write_train_lines_execution_role_inline_policy_document" {
+  statement {
+    effect    = "Allow"
+    actions = [
+      "sqs:SendMessage",
+      "sqs:GetQueueAttributes"
+    ]
+    resources = [
+      "arn:aws:sqs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cta-train-tracker-analytics-lambda-trigger-queue"
+    ]
+  }
+  statement {
+    effect    = "Allow"
+    actions = [
+      "sns:Publish"
+    ]
+    resources = [
+      var.sns_topic_arn
+    ]
+  }
+  statement {
+    effect    = "Allow"
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents"
+    ]
+    resources = [
+      "*"
+    ]
+  }
+}
+
+module "lambda_write_train_lines_role" {
+  source                    = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/iam-role?ref=main"
+  role_name                 = "cta-write-train-lines-lambda-execution-role"
+  trust_relationship_policy = data.aws_iam_policy_document.lambda_trust_relationship_policy.json
+  inline_policy             = data.aws_iam_policy_document.lambda_write_train_lines_execution_role_inline_policy_document.json
+  inline_policy_description = "Inline policy for CTA Train Analytics cta-write-train-lines Lambda execution role"
+  environment               = var.environment
+  project                   = var.project_name
+}
+
+module "cta_write_train_lines_lambda" {
+  source                         = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/lambda?ref=main"
+  environment                    = var.environment
+  project                        = var.project_name
+  lambda_name                    = "cta-write-train-lines"
+  lambda_description             = "Lambda function to write CTA train lines each minute to SQS queue"
+  lambda_filename                = "write_train_lines.zip"
+  lambda_handler                 = "write_train_lines.lambda_handler"
+  lambda_memory_size             = "256"
+  lambda_runtime                 = "python3.12"
+  lambda_timeout                 = 30
+  lambda_execution_role_arn      = module.lambda_write_train_lines_role.role_arn
+  sns_topic_arn                  = var.sns_topic_arn
+    lambda_environment_variables = {
+      SQS_QUEUE_NAME = "cta-train-tracker-analytics-lambda-trigger-queue"
+      AWS_REGION     = var.aws_region
+  }
+}
+
+module "sqs_queue" {
+  source                     = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/sqs-topic?ref=main"
+  queue_name                 = "cta-train-tracker-analytics-lambda-trigger-queue"
+  visibility_timeout_seconds = 35
+  project                    = var.project_name
+  environment                = var.environment
 }
 
 data "aws_iam_policy_document" "lambda_get_cta_train_status_execution_role_inline_policy_document" {
