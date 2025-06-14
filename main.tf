@@ -101,18 +101,25 @@ data "aws_lambda_layer_version" "latest_retry_api" {
   layer_name = "retry_api_exceptions"
 }
 
+data aws_s3_object "write_train_lines_zip" {
+  bucket = "lambda-source-code-${data.aws_caller_identity.current.account_id}-bucket"
+  key    = "cta_write_train_lines.zip"
+}
+
 module "cta_write_train_lines_lambda" {
   source                         = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/lambda?ref=main"
   environment                    = var.environment
   project                        = var.project_name
   lambda_name                    = "cta-write-train-lines"
   lambda_description             = "Lambda function to write CTA train lines each minute to SQS queue"
-  lambda_filename                = "write_train_lines.zip"
   lambda_handler                 = "write_train_lines.lambda_handler"
   lambda_memory_size             = "256"
   lambda_runtime                 = "python3.12"
   lambda_timeout                 = 30
   lambda_execution_role_arn      = module.lambda_write_train_lines_role.role_arn
+  s3_bucket_name                 = "lambda-source-code-${data.aws_caller_identity.current.account_id}-bucket"
+  s3_object_key                  = "cta_write_train_lines.zip"
+  s3_object_version              = data.aws_s3_object.write_train_lines_zip.version_id
   lambda_layers                  = [data.aws_lambda_layer_version.latest_retry_api.arn]
   sns_topic_arn                  = var.sns_topic_arn
     lambda_environment_variables = {
@@ -173,6 +180,11 @@ module "lambda_get_cta_train_status_execution_role" {
   project                   = var.project_name
 }
 
+data aws_s3_object "get_train_status_zip" {
+  bucket = "lambda-source-code-${data.aws_caller_identity.current.account_id}-bucket"
+  key    = "cta_get_train_status.zip"
+}
+
 module "cta_get_train_status_lambda" {
   source                         = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/lambda?ref=main"
   environment                    = var.environment
@@ -185,6 +197,9 @@ module "cta_get_train_status_lambda" {
   lambda_runtime                 = "python3.12"
   lambda_timeout                 = 30
   lambda_execution_role_arn      = module.lambda_get_cta_train_status_execution_role.role_arn
+  s3_bucket_name                 = "lambda-source-code-${data.aws_caller_identity.current.account_id}-bucket"
+  s3_object_key                  = "cta_get_train_status.zip"
+  s3_object_version              = data.aws_s3_object.get_train_status_zip.version_id
   sns_topic_arn                  = var.sns_topic_arn
     lambda_environment_variables = {
       API_KEY = var.cta_train_tracker_api_key
