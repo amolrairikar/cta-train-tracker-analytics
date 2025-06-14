@@ -62,7 +62,7 @@ data "aws_iam_policy_document" "lambda_write_train_lines_execution_role_inline_p
       "sqs:GetQueueUrl"
     ]
     resources = [
-      "arn:aws:sqs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cta-train-tracker-analytics-lambda-trigger-queue"
+      "arn:aws:sqs:${var.aws_region_name}:${data.aws_caller_identity.current.account_id}:cta-train-tracker-analytics-lambda-trigger-queue"
     ]
   }
   statement {
@@ -71,7 +71,7 @@ data "aws_iam_policy_document" "lambda_write_train_lines_execution_role_inline_p
       "sns:Publish"
     ]
     resources = [
-      var.sns_topic_arn
+      "arn:aws:sns:${var.aws_region_name}:${data.aws_caller_identity.current.account_id}:lambda-failure-notification-topic"
     ]
   }
   statement {
@@ -121,10 +121,10 @@ module "cta_write_train_lines_lambda" {
   s3_object_key                  = "cta_write_train_lines.zip"
   s3_object_version              = data.aws_s3_object.write_train_lines_zip.version_id
   lambda_layers                  = [data.aws_lambda_layer_version.latest_retry_api.arn]
-  sns_topic_arn                  = var.sns_topic_arn
+  sns_topic_arn                  = "arn:aws:sns:${var.aws_region_name}:${data.aws_caller_identity.current.account_id}:lambda-failure-notification-topic"
     lambda_environment_variables = {
       SQS_QUEUE_NAME = "cta-train-tracker-analytics-lambda-trigger-queue"
-      REGION_NAME     = var.aws_region
+      REGION_NAME     = var.aws_region_name
   }
 }
 
@@ -154,7 +154,7 @@ data "aws_iam_policy_document" "lambda_get_cta_train_status_execution_role_inlin
       "sns:Publish"
     ]
     resources = [
-      var.sns_topic_arn
+      "arn:aws:sns:${var.aws_region_name}:${data.aws_caller_identity.current.account_id}:lambda-failure-notification-topic"
     ]
   }
   statement {
@@ -200,7 +200,7 @@ module "cta_get_train_status_lambda" {
   s3_bucket_name                 = "lambda-source-code-${data.aws_caller_identity.current.account_id}-bucket"
   s3_object_key                  = "cta_get_train_status.zip"
   s3_object_version              = data.aws_s3_object.get_train_status_zip.version_id
-  sns_topic_arn                  = var.sns_topic_arn
+  sns_topic_arn                  = "arn:aws:sns:${var.aws_region_name}:${data.aws_caller_identity.current.account_id}:lambda-failure-notification-topic"
     lambda_environment_variables = {
       API_KEY = var.cta_train_tracker_api_key
   }
