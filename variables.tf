@@ -13,13 +13,8 @@ variable "project_name" {
   type        = string
 }
 
-variable "aws_region" {
+variable "aws_region_name" {
   description = "The AWS region where resources are deployed"
-  type        = string
-}
-
-variable "sns_topic_arn" {
-  description = "The ARN of the SNS topic to which Lambda failure notifications are sent"
   type        = string
 }
 
