@@ -191,7 +191,6 @@ module "cta_get_train_status_lambda" {
   project                        = var.project_name
   lambda_name                    = "cta-get-train-status-lambda"
   lambda_description             = "Lambda function to get current status of CTA trains from the CTA Train Tracker API"
-  lambda_filename                = "get_train_status.zip"
   lambda_handler                 = "get_train_status.lambda_handler"
   lambda_memory_size             = "256"
   lambda_runtime                 = "python3.12"
