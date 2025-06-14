@@ -110,15 +110,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download Lambda zip artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: all-lambdas
-          path: .
-
-      - name: View files in root directory
-        run: ls -la
-
       - name: Set up AWS credentials (using OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
