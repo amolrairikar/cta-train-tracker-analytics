@@ -66,7 +66,7 @@ data "aws_iam_policy_document" "lambda_write_train_lines_execution_role_inline_p
       "sqs:GetQueueUrl"
     ]
     resources = [
-      "arn:aws:sqs:${var.aws_region_name}:${data.aws_caller_identity.current.account_id}:cta-train-tracker-analytics-lambda-trigger-queue"
+      "arn:aws:sqs:${var.aws_region_name}:${data.aws_caller_identity.current.account_id}:${local.queue_name}"
     ]
   }
   statement {
