@@ -39,7 +39,7 @@ module "eventbridge_scheduler" {
   schedule_frequency   = "cron(* * * * ? *)"
   schedule_timezone    = "America/Chicago"
   schedule_state       = "ENABLED"
-  scheduler_name       = "cta-write-train-lines-eventbridge-scheduler"
+  scheduler_name       = "cta-write-train-lines-lambda-trigger"
 }
 
 data "aws_iam_policy_document" "lambda_trust_relationship_policy" {
@@ -130,7 +130,7 @@ module "cta_write_train_lines_lambda" {
 
 module "sqs_queue" {
   source                     = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/sqs-topic?ref=main"
-  queue_name                 = "cta-train-tracker-analytics-lambda-trigger-queue"
+  queue_name                 = "cta-trigger-get-train-status"
   visibility_timeout_seconds = 35
   project                    = var.project_name
   environment                = var.environment
@@ -189,7 +189,7 @@ module "cta_get_train_status_lambda" {
   source                         = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/lambda?ref=main"
   environment                    = var.environment
   project                        = var.project_name
-  lambda_name                    = "cta-get-train-status-lambda"
+  lambda_name                    = "cta-get-train-status"
   lambda_description             = "Lambda function to get current status of CTA trains from the CTA Train Tracker API"
   lambda_handler                 = "get_train_status.lambda_handler"
   lambda_memory_size             = "256"
