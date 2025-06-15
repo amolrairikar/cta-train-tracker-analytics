@@ -10,6 +10,10 @@ provider "aws" {
   }
 }
 
+locals {
+  queue_name = split(":", module.sqs_queue.queue_arn)[5]
+}
+
 data "aws_caller_identity" "current" {}
 
 module "application_dynamodb_table" {
@@ -123,8 +127,8 @@ module "cta_write_train_lines_lambda" {
   lambda_layers                  = [data.aws_lambda_layer_version.latest_retry_api.arn]
   sns_topic_arn                  = "arn:aws:sns:${var.aws_region_name}:${data.aws_caller_identity.current.account_id}:lambda-failure-notification-topic"
     lambda_environment_variables = {
-      SQS_QUEUE_NAME = "cta-train-tracker-analytics-lambda-trigger-queue"
-      REGION_NAME     = var.aws_region_name
+      SQS_QUEUE_NAME = local.queue_name
+      REGION_NAME    = var.aws_region_name
   }
 }
 
