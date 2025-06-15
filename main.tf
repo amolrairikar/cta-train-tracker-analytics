@@ -130,7 +130,7 @@ module "cta_write_train_lines_lambda" {
 
 module "sqs_queue" {
   source                     = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/sqs-topic?ref=main"
-  queue_name                 = "cta-train-tracker-analytics-lambda-trigger-queue"
+  queue_name                 = "cta-trigger-get-train-status"
   visibility_timeout_seconds = 35
   project                    = var.project_name
   environment                = var.environment
