@@ -23,8 +23,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     logger.info(f'Event: {event}')
 
     # Parse event body from SQS
-    trigger_event_json = json.dumps(event)
-    trigger_event_body = json.loads(trigger_event_json.get('Records', [])[0])#.get('body', ''))
+    trigger_event_body = json.loads(event.get('Records', [])[0].get('body', ''))
     logger.info(f'Trigger event body: {trigger_event_body}')
 
     return {
