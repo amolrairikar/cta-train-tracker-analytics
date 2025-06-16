@@ -130,8 +130,7 @@ jobs:
 
       - name: Import resources (temp)
         run: |
-          terraform import module.cta_get_train_status_lambda.aws_cloudwatch_log_group.this /aws/lambda/cta-get-train-status
-          terraform import module.cta_get_train_status_lambda.aws_cloudwatch_log_group.this /aws/lambda/cta-write-train-lines
+          terraform import module.cta_write_train_lines_lambda.aws_cloudwatch_log_group.this /aws/lambda/cta-write-train-lines
 
       - name: Plan Terraform
         run: |
