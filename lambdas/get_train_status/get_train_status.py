@@ -23,9 +23,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     logger.info(f'Event: {event}')
 
     # Parse event body from SQS
-    trigger_event_body = json.loads(event.get('Records', [])[0].get('body', '{}'))
-    logger.info('Train line abbrev: %s', trigger_event_body.get('train_line_abbrev', 'N/A'))
-    logger.info('Train line: %s', trigger_event_body.get('train_line', 'N/A'))
+    trigger_event_json = json.dumps(event)
+    logger.info(f'Trigger event JSON: {trigger_event_json}')
 
     return {
         'statusCode': 200,
