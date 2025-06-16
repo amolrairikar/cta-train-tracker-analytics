@@ -1,6 +1,7 @@
 """Module for component testing of the write_train_lines lambda handler function."""
 import unittest
 from unittest.mock import patch, MagicMock
+import json
 
 import botocore
 import botocore.exceptions
@@ -78,7 +79,7 @@ class TestSendMessageToSqs(unittest.TestCase):
 
             mock_sqs_client.send_message.assert_called_once_with(
                 QueueUrl=queue_url,
-                MessageBody=str(message_body)
+                MessageBody=json.dumps(message_body)
             )
 
     def test_send_message_to_sqs_client_error(self):
