@@ -1,6 +1,7 @@
 from typing import Dict, Any
 import logging
 import os
+import json
 
 import boto3
 import botocore
@@ -55,7 +56,7 @@ def send_message_to_sqs(sqs_client, queue_url: str, message_body: Dict[str, Any]
     try:
         sqs_client.send_message(
             QueueUrl=queue_url,
-            MessageBody=str(message_body)
+            MessageBody=json.dumps(message_body)
         )
         logger.info('Successfully sent message to SQS queue')
     except botocore.exceptions.ClientError as e:
