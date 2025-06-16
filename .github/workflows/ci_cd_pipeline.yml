@@ -128,6 +128,11 @@ jobs:
             -backend-config="region=us-east-2" \
             -backend-config="assume_role={role_arn=\"${TF_VAR_infra_role_arn}\", session_name=\"terraform-session\"}"
 
+      - name: Import resources (temp)
+        run: |
+          terraform import module.cta_get_train_status_lambda.aws_cloudwatch_log_group.this /aws/lambda/cta-get-train-status
+          terraform import module.cta_get_train_status_lambda.aws_cloudwatch_log_group.this /aws/lambda/cta-write-train-lines
+
       - name: Plan Terraform
         run: |
           echo "Planning Terraform configuration..."
