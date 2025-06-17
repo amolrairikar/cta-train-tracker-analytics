@@ -53,12 +53,10 @@ def get_sqs_queue_url(sqs_client, queue_name: str) -> str:
 def send_message_to_sqs(sqs_client, queue_url: str, message_body: Dict[str, Any]) -> None:
     """Send a message to the specified SQS queue."""
     logger.info('Sending message to SQS queue: %s', queue_url)
-    sqs_message_body = json.dumps(message_body)
-    logger.info('Serialized JSON: %s', sqs_message_body)
     try:
         sqs_client.send_message(
             QueueUrl=queue_url,
-            MessageBody=sqs_message_body
+            MessageBody=json.dumps(message_body)
         )
         logger.info('Successfully sent message to SQS queue')
     except botocore.exceptions.ClientError as e:

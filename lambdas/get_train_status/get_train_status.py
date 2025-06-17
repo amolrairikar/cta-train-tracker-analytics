@@ -1,7 +1,6 @@
 """Module containing code for Lambda function to fetch CTA train statuses from the Train Tracker API."""
 from typing import Dict, Any
 import logging
-import json
 
 # Set up logger
 # TODO: convert the logging level into an environment variable
@@ -23,7 +22,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     logger.info(f'Event: {event}')
 
     # Parse event body from SQS
-    trigger_event_body = json.load(event.get('Records', [])[0].get('body', ''))
+    trigger_event_body = event.get('Records', [])[0].get('body', '')
     logger.info(f'Trigger event body: {trigger_event_body}')
 
     return {
