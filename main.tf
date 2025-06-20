@@ -156,6 +156,15 @@ data "aws_iam_policy_document" "lambda_get_cta_train_status_execution_role_inlin
   statement {
     effect    = "Allow"
     actions = [
+      "dynamodb:BatchWriteItem"
+    ]
+    resources = [
+      module.application_dynamodb_table.dynamodb_arn
+    ]
+  }
+  statement {
+    effect    = "Allow"
+    actions = [
       "sns:Publish"
     ]
     resources = [
