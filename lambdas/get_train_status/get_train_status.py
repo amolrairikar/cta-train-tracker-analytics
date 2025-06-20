@@ -2,13 +2,13 @@
 from typing import Dict, Any, List
 import logging
 import os
-import requests
 import datetime
 import time
 import zoneinfo
 
 import boto3
 from dotenv import load_dotenv
+import requests
 
 from retry_api_exceptions import backoff_on_client_error
 
