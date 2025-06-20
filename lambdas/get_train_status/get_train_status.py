@@ -76,6 +76,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     sqs_message_body = event.get('Records', [])[0].get('body', '')
     logger.info('SQS message body: %s: ', sqs_message_body)
+    logger.info(type(sqs_message_body))
     # train_line_abbrev = event.get('Records', [])[0].get('body', '').get('train_line_abbrev', '')
     # train_line = event.get('Records', [])[0].get('body', '').get('train_line', '')
     # if not train_line or not train_line_abbrev:
