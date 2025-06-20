@@ -74,7 +74,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     today_date = datetime.datetime.now(timezone).date().strftime('%Y-%m-%d')
     ttl_expiry_time = int(time.time()) + (60*60*36)  # Records expire in 36 hours
 
-    sqs_message_body = json.loads(event)
+    sqs_message_body = event.get('Records', [])[0]
     logger.info(sqs_message_body)
     # train_line_abbrev = event.get('Records', [])[0].get('body', '').get('train_line_abbrev', '')
     # train_line = event.get('Records', [])[0].get('body', '').get('train_line', '')
