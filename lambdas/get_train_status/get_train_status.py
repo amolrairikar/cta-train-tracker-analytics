@@ -5,6 +5,7 @@ import os
 import requests
 import datetime
 import time
+import zoneinfo
 
 import boto3
 from dotenv import load_dotenv
@@ -68,7 +69,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     logger.info(f'Lambda function version: {context.function_version}')
     logger.info(f'Event: {event}')
 
-    today_date = datetime.date.today().strftime('%Y-%m-%d')
+    timezone = zoneinfo.ZoneInfo('America/Chicago')
+    today_date = datetime.datetime.now(timezone).date().strftime('%Y-%m-%d')
     ttl_expiry_time = int(time.time()) + (60*60*36)  # Records expire in 36 hours
 
     train_line_abbrev = event.get('Records', [])[0].get('body', '').get('train_line_abbrev', '')
