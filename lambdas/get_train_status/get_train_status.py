@@ -26,6 +26,7 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
 
+
 @backoff_on_client_error
 def get_train_locations(train_line_abbrev: str) -> Dict[str, Any]:
     """Makes request to Train Locations API endpoint to get locations of all trains for a given line."""
@@ -42,24 +43,6 @@ def get_train_locations(train_line_abbrev: str) -> Dict[str, Any]:
     locations = response.json()
     return locations
 
-@backoff_on_client_error
-def write_train_location_data(table_name: str, batched_items: List[Dict[str, Any]]):
-    """Writes train location data to DynamoDB table."""
-    dynamo_db = boto3.client('dynamodb')
-    request_items = {table_name: batched_items}
-    while request_items:
-        logger.info('Writing batch of %i items', len(request_items[table_name]))
-        response = dynamo_db.batch_write_item(
-            RequestItems=request_items
-        )
-        unprocessed = response.get('UnprocessedItems', {})
-        if unprocessed:
-            logger.info('Retrying %i unprocessed items', len(unprocessed[table_name]))
-            time.sleep(2)
-            request_items = unprocessed
-        else:
-            logger.info('Wrote all items successfully')
-            break
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Main handler function for the Lambda fetching recently played tracks."""
@@ -81,38 +64,36 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         raise ValueError('Parameters train_line_abbrev and/or train_line were not present in the SQS message payload.')
 
     locations = get_train_locations(train_line_abbrev=train_line_abbrev)
-    trains = locations.get('ctatt', {}).get('route', [])
-    if trains:
-        trains_in_service = trains[0].get('train', [])
-        if trains_in_service:
-            request_timestamp = locations['ctatt']['tmst']
-            batch_write_items = []
-            for train in trains_in_service:
-                batch_write_items.append(
-                    {
-                        'PutRequest': {
-                            'Item': {
-                                'TrainId': {'S': f'{today_date}#{train_line}#{train['rn']}#{train['trDr']}'},
-                                'UpdatedTimestamp': {'S': request_timestamp},
-                                'DestinationStation': {'S': train['destNm']},
-                                'NextStation': {'S': train['nextStaNm']},
-                                'NextStationArrivalPredictionTime': {'S': train['prdt']},
-                                'NextStationArrivalTime': {'S': train['arrT']},
-                                'ApproachingStation': {'S': train['isApp']},
-                                'TrainDelayed': {'S': train['isDly']},
-                                'TimeToExist': {'N': str(ttl_expiry_time)}
-                            }
-                        }
-                    }
-                )
-            write_train_location_data(
-                table_name='cta-train-tracker-location-application-data',
-                batched_items=batch_write_items
-            )
-        else:
-            logger.info('No trains running currently')
-    else:
-        logger.info('Route object not present in API response')
+    # trains = locations.get('ctatt', {}).get('route', [])
+    # if trains:
+    #     trains_in_service = trains[0].get('train', [])
+    #     if trains_in_service:
+    #         batch_write_items = []
+    #         for train in trains_in_service:
+    #             batch_write_items.append(
+    #                 {
+    #                     'PutRequest': {
+    #                         'Item': {
+    #                             'TrainId': {'S': f'{today_date}#{train_line}#{train['rn']}#{train['trDr']}'},
+    #                             'UpdatedTimestamp': {'S': train['prdt']},
+    #                             'DestinationStation': {'S': train['destNm']},
+    #                             'NextStation': {'S': train['nextStaNm']},
+    #                             'NextStationArrivalTime': {'S': train['arrT']},
+    #                             'ApproachingStation': {'S': train['isApp']},
+    #                             'TrainDelayed': {'S': train['isDly']},
+    #                             'TimeToExist': {'N': str(ttl_expiry_time)}
+    #                         }
+    #                     }
+    #                 }
+    #             )
+    #         write_train_location_data(
+    #             table_name='cta-train-tracker-location-application-data',
+    #             batched_items=batch_write_items
+    #         )
+    #     else:
+    #         logger.info('No trains running currently')
+    # else:
+    #     logger.info('Route object not present in API response')
 
     return {
         'statusCode': 200,

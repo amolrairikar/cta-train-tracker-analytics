@@ -32,6 +32,7 @@ cta_train_lines = {
     'Pink': 'Pink'
 }
 
+
 @backoff_on_client_error
 def get_sqs_queue_url(sqs_client, queue_name: str) -> str:
     """Get the URL of the specified SQS queue."""
@@ -49,6 +50,7 @@ def get_sqs_queue_url(sqs_client, queue_name: str) -> str:
         logger.error('Error retrieving SQS queue URL: %s', e)
         raise
 
+
 @backoff_on_client_error
 def send_message_to_sqs(sqs_client, queue_url: str, message_body: Dict[str, Any]) -> None:
     """Send a message to the specified SQS queue."""
@@ -64,7 +66,6 @@ def send_message_to_sqs(sqs_client, queue_url: str, message_body: Dict[str, Any]
         raise
 
 
-@backoff_on_client_error
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Main handler function for the Lambda writing CTA train lines to SQS."""
     logger.info('Begin Lambda execution')
