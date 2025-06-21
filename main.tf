@@ -16,25 +16,25 @@ locals {
 
 data "aws_caller_identity" "current" {}
 
-module "application_dynamodb_table" {
-  source            = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/dynamodb?ref=main"
-  environment       = var.environment
-  project           = var.project_name
-  table_name        = "cta-train-tracker-location-application-data"
-  hash_key          = "TrainId"
-  range_key         = "UpdatedTimestamp"
-  attributes        = [
-    {
-      name = "TrainId"
-      type = "S"
-    },
-    {
-      name = "UpdatedTimestamp"
-      type = "S"
-    }
-  ]
-  enable_ttl        = true
-}
+# module "application_dynamodb_table" {
+#   source            = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/dynamodb?ref=main"
+#   environment       = var.environment
+#   project           = var.project_name
+#   table_name        = "cta-train-tracker-location-application-data"
+#   hash_key          = "TrainId"
+#   range_key         = "UpdatedTimestamp"
+#   attributes        = [
+#     {
+#       name = "TrainId"
+#       type = "S"
+#     },
+#     {
+#       name = "UpdatedTimestamp"
+#       type = "S"
+#     }
+#   ]
+#   enable_ttl        = true
+# }
 
 module "eventbridge_scheduler" {
   source               = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/eventbridge-scheduler?ref=main"
@@ -151,15 +151,6 @@ data "aws_iam_policy_document" "lambda_get_cta_train_status_execution_role_inlin
     ]
     resources = [
       module.sqs_queue.queue_arn
-    ]
-  }
-  statement {
-    effect    = "Allow"
-    actions = [
-      "dynamodb:BatchWriteItem"
-    ]
-    resources = [
-      module.application_dynamodb_table.dynamodb_arn
     ]
   }
   statement {
