@@ -1,4 +1,4 @@
-"""Module for component testing of the write_train_lines lambda handler function."""
+"""Module for unit testing of the write_train_lines lambda handler function."""
 import unittest
 from unittest.mock import patch, MagicMock
 import json
