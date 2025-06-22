@@ -69,7 +69,7 @@ jobs:
       - name: Install zip
         run: sudo apt-get update && sudo apt-get install -y zip
 
-      - name: Check if layer folder changed
+      - name: Check if lambda folder changed
         id: detect_lambda_change
         run: |
           wget --tries=3 https://raw.githubusercontent.com/amolrairikar/aws-account-infrastructure-setup/refs/heads/main/scripts/detect_lambda_changes.sh
