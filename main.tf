@@ -119,7 +119,7 @@ module "cta_write_train_lines_lambda" {
   lambda_handler                 = "write_train_lines.lambda_handler"
   lambda_memory_size             = "256"
   lambda_runtime                 = "python3.12"
-  lambda_timeout                 = 30
+  lambda_timeout                 = 10
   lambda_execution_role_arn      = module.lambda_write_train_lines_role.role_arn
   s3_bucket_name                 = "lambda-source-code-${data.aws_caller_identity.current.account_id}-bucket"
   s3_object_key                  = "cta_write_train_lines.zip"
@@ -136,9 +136,21 @@ module "cta_write_train_lines_lambda" {
 module "sqs_queue" {
   source                     = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/sqs-topic?ref=main"
   queue_name                 = "cta-trigger-get-train-status"
-  visibility_timeout_seconds = 35
+  message_retention_seconds  = 3600
+  visibility_timeout_seconds = 20
   project                    = var.project_name
   environment                = var.environment
+}
+
+module "cta_project_data_bucket" {
+  source            = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/s3-bucket-private?ref=main"
+  bucket_name       = "cta-train-analytics-app-data-lake-${data.aws_caller_identity.current.account_id}-${var.environment}"
+  account_number    = data.aws_caller_identity.current.account_id
+  environment       = var.environment
+  project           = var.project_name
+  versioning_status = "Enabled"
+  enable_acl        = false
+  object_ownership  = "BucketOwnerEnforced"
 }
 
 data "aws_iam_policy_document" "lambda_get_cta_train_status_execution_role_inline_policy_document" {
@@ -151,6 +163,15 @@ data "aws_iam_policy_document" "lambda_get_cta_train_status_execution_role_inlin
     ]
     resources = [
       module.sqs_queue.queue_arn
+    ]
+  }
+  statement {
+    effect    = "Allow"
+    actions = [
+      "s3:PutObject"
+    ]
+    resources = [
+      "arn:aws:s3:::${module.cta_project_data_bucket.bucket_id}/*"
     ]
   }
   statement {
@@ -199,7 +220,7 @@ module "cta_get_train_status_lambda" {
   lambda_handler                 = "get_train_status.lambda_handler"
   lambda_memory_size             = "256"
   lambda_runtime                 = "python3.12"
-  lambda_timeout                 = 30
+  lambda_timeout                 = 10
   lambda_execution_role_arn      = module.lambda_get_cta_train_status_execution_role.role_arn
   s3_bucket_name                 = "lambda-source-code-${data.aws_caller_identity.current.account_id}-bucket"
   s3_object_key                  = "cta_get_train_status.zip"
@@ -209,6 +230,7 @@ module "cta_get_train_status_lambda" {
   log_retention_days             = 7
   lambda_environment_variables = {
     API_KEY = var.cta_train_tracker_api_key
+    S3_BUCKET_NAME = module.cta_project_data_bucket.bucket_id
   }
 }
 

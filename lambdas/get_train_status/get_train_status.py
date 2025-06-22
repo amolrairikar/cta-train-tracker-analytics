@@ -3,9 +3,9 @@ from typing import Dict, Any, List
 import logging
 import os
 import datetime
-import time
 import zoneinfo
 import json
+import uuid
 
 import boto3
 from dotenv import load_dotenv
@@ -44,8 +44,23 @@ def get_train_locations(train_line_abbrev: str) -> Dict[str, Any]:
     return locations
 
 
+@backoff_on_client_error
+def write_train_location_data(output_data: List[Dict[str, Any]], today_date: datetime.date):
+    """Writes train location data to S3."""
+    s3 = boto3.client('s3')
+    json_data = json.dumps(output_data, indent=4)
+    logger.info('Attempting to write output data to S3')
+    s3.put_object(
+        Bucket=os.environ['S3_BUCKET_NAME'],
+        Key=f'year={today_date.year}/month={today_date.month}/day={today_date.day}/{uuid.uuid4}.json',
+        Body=json_data,
+        ContentType='application/json'
+    )
+    logger.info('Successfully wrote data to S3')
+
+
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Main handler function for the Lambda fetching recently played tracks."""
+    """Main handler function for the Lambda getting train locations."""
     # Log basic information about the Lambda function
     logger.info('Begin Lambda execution')
     logger.info(f'Lambda request ID: {context.aws_request_id}')
@@ -54,46 +69,38 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     logger.info(f'Event: {event}')
 
     timezone = zoneinfo.ZoneInfo('America/Chicago')
-    today_date = datetime.datetime.now(timezone).date().strftime('%Y-%m-%d')
-    ttl_expiry_time = int(time.time()) + (60*60*36)  # Records expire in 36 hours
+    today = datetime.datetime.now(timezone).date()
+    today_date = today.strftime('%Y-%m-%d')
 
     sqs_message_body = event.get('Records', [])[0].get('body', '')
     train_line_abbrev = json.loads(sqs_message_body).get('train_line_abbrev', '')
     train_line = json.loads(sqs_message_body).get('train_line', '')
-    if not train_line or not train_line_abbrev:
+    if not train_line_abbrev or not train_line:
         raise ValueError('Parameters train_line_abbrev and/or train_line were not present in the SQS message payload.')
 
     locations = get_train_locations(train_line_abbrev=train_line_abbrev)
-    # trains = locations.get('ctatt', {}).get('route', [])
-    # if trains:
-    #     trains_in_service = trains[0].get('train', [])
-    #     if trains_in_service:
-    #         batch_write_items = []
-    #         for train in trains_in_service:
-    #             batch_write_items.append(
-    #                 {
-    #                     'PutRequest': {
-    #                         'Item': {
-    #                             'TrainId': {'S': f'{today_date}#{train_line}#{train['rn']}#{train['trDr']}'},
-    #                             'UpdatedTimestamp': {'S': train['prdt']},
-    #                             'DestinationStation': {'S': train['destNm']},
-    #                             'NextStation': {'S': train['nextStaNm']},
-    #                             'NextStationArrivalTime': {'S': train['arrT']},
-    #                             'ApproachingStation': {'S': train['isApp']},
-    #                             'TrainDelayed': {'S': train['isDly']},
-    #                             'TimeToExist': {'N': str(ttl_expiry_time)}
-    #                         }
-    #                     }
-    #                 }
-    #             )
-    #         write_train_location_data(
-    #             table_name='cta-train-tracker-location-application-data',
-    #             batched_items=batch_write_items
-    #         )
-    #     else:
-    #         logger.info('No trains running currently')
-    # else:
-    #     logger.info('Route object not present in API response')
+    trains = locations.get('ctatt', {}).get('route', [])
+    if trains:
+        trains_in_service = trains[0].get('train', [])
+        if trains_in_service:
+            output_data = []
+            for train in trains_in_service:
+                output_data.append(
+                    {
+                        'TrainId': f'{today_date}#{train_line}#{train['rn']}#{train['trDr']}',
+                        'PredictionGeneratedTimestamp': train['prdt'],
+                        'DestinationStation': train['destNm'],
+                        'NextStation': train['nextStaNm'],
+                        'NextStationArrivalTime': train['arrT'],
+                        'ApproachingStation': train['isApp'],
+                        'TrainDelayed': train['isDly']
+                    }
+                )
+            write_train_location_data(output_data=output_data, today_date=today)
+        else:
+            logger.info('No trains running currently')
+    else:
+        logger.info('Route object not present in API response')
 
     return {
         'statusCode': 200,
