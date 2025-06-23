@@ -5,7 +5,6 @@ import os
 import datetime
 import zoneinfo
 import json
-import uuid
 
 import boto3
 from dotenv import load_dotenv
@@ -45,14 +44,14 @@ def get_train_locations(train_line_abbrev: str) -> Dict[str, Any]:
 
 
 @backoff_on_client_error
-def write_train_location_data(output_data: List[Dict[str, Any]], today_date: datetime.date):
+def write_train_location_data(output_data: List[Dict[str, Any]]):
     """Writes train location data to S3."""
     s3 = boto3.client('s3')
     json_data = json.dumps(output_data, indent=4)
     logger.info('Attempting to write output data to S3')
     s3.put_object(
         Bucket=os.environ['S3_BUCKET_NAME'],
-        Key=f'year={today_date.year}/month={today_date.month}/day={today_date.day}/{uuid.uuid4}.json',
+        Key=f'raw/{datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')}.json',
         Body=json_data,
         ContentType='application/json'
     )
@@ -99,8 +98,14 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             write_train_location_data(output_data=output_data, today_date=today)
         else:
             logger.info('No trains running currently')
+            return {
+                'statusCode': 204,
+                'body': 'No records written due to no trains running'
+            }
     else:
-        logger.info('Route object not present in API response')
+        message = 'Route or ctatt object not present in API response'
+        logger.info(message)
+        raise KeyError(message)
 
     return {
         'statusCode': 200,
