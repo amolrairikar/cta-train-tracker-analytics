@@ -10,6 +10,7 @@ coverage = "*"
 moto = "*"
 python-dotenv = "*"
 requests = "*"
+tzdata = "*"
 
 [requires]
 python_version = "3.12"
