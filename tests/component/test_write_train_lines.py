@@ -4,7 +4,6 @@ from unittest.mock import patch
 import os
 
 import boto3
-import botocore
 from moto import mock_aws
 
 from lambdas.write_train_lines.write_train_lines import lambda_handler
@@ -36,7 +35,6 @@ class TestWriteTrainLines(unittest.TestCase):
             }
         )
         self.env_patcher.start()
-
 
     def tearDown(self):
         """Stop all patches after each test."""
