@@ -2,11 +2,12 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import json
+import os
 
 import botocore
 import botocore.exceptions
 
-from lambdas.write_train_lines.write_train_lines import get_sqs_queue_url, send_message_to_sqs
+from lambdas.write_train_lines.write_train_lines import get_sqs_queue_url, send_message_to_sqs, lambda_handler
 
 
 class TestGetQueueUrl(unittest.TestCase):
@@ -117,3 +118,91 @@ class TestSendMessageToSqs(unittest.TestCase):
             send_message_to_sqs(mock_sqs_client, queue_url, message_body)
 
             self.assertEqual(mock_sqs_client.send_message.call_count, 2)
+
+
+class MockLambdaContext:
+    """Mock class for AWS Lambda context."""
+
+    def __init__(self):
+        """Initializes mock Lambda context with constant attributes for tests."""
+        self.aws_request_id = 'test-request-id'
+        self.function_name = 'test-function-name'
+        self.function_version = 'test-function-version'
+
+
+class TestLambdaHandler(unittest.TestCase):
+    """Class for testing lambda_handler method."""
+
+    def setUp(self):
+        """Patch environment variables and common dependencies before each test."""
+        self.mock_event = {'event-name': 'test-event'}
+        self.env_patcher = patch.dict(
+            os.environ,
+            {
+                'SQS_QUEUE_NAME': 'test-queue',
+                'REGION_NAME': 'us-east-2'
+            }
+        )
+        self.env_patcher.start()
+
+    def tearDown(self):
+        """Stop all patches after each test."""
+        self.env_patcher.stop()
+
+    @patch('lambdas.write_train_lines.write_train_lines.get_sqs_queue_url')
+    @patch('lambdas.write_train_lines.write_train_lines.send_message_to_sqs')
+    @patch('lambdas.get_train_status.get_train_status.boto3.client')
+    def test_lambda_handler_success(self, mock_boto_client, mock_send_message, mock_get_queue_url):
+        """Tests successful (happy path) lambda_handler invocation."""
+        mock_sqs = MagicMock()
+        mock_boto_client.return_value = mock_sqs
+        mock_send_message.return_value = None
+        mock_get_queue_url.return_value = 'test-queue-url'
+
+        response = lambda_handler(event=self.mock_event, context=MockLambdaContext())
+
+        self.assertEqual(
+            response,
+            {
+                'statusCode': 200,
+                'body': 'Processed all train lines'
+            }
+        )
+        self.assertEqual(mock_send_message.call_count, 7)
+
+    def test_missing_queue_name_env_variable(self):
+        """Tests KeyError is raised if SQS_QUEUE_NAME env variable is missing."""
+        del os.environ['SQS_QUEUE_NAME']
+
+        with self.assertRaises(KeyError):
+            lambda_handler(event=self.mock_event, context=MockLambdaContext())
+
+    def test_missing_region_name_env_variable(self):
+        """Tests KeyError is raised if REGION_NAME env variable is missing."""
+        del os.environ['REGION_NAME']
+
+        with self.assertRaises(KeyError):
+            lambda_handler(event=self.mock_event, context=MockLambdaContext())
+
+    @patch('lambdas.write_train_lines.write_train_lines.get_sqs_queue_url')
+    @patch('lambdas.write_train_lines.write_train_lines.send_message_to_sqs')
+    @patch('lambdas.write_train_lines.write_train_lines.boto3.client')
+    @patch('lambdas.write_train_lines.write_train_lines.cta_train_lines')
+    def test_lambda_handler_no_train_lines(self, mock_train_lines, mock_boto_client, mock_send_message, mock_get_queue_url):
+        """Tests lambda_handler if no train lines to write."""
+        mock_sqs = MagicMock()
+        mock_boto_client.return_value = mock_sqs
+        mock_send_message.return_value = None
+        mock_get_queue_url.return_value = 'test-queue-url'
+        mock_train_lines.return_value = {}
+
+        response = lambda_handler(event=self.mock_event, context=MockLambdaContext())
+
+        self.assertEqual(
+            response,
+            {
+                'statusCode': 200,
+                'body': 'Processed all train lines'
+            }
+        )
+        self.assertEqual(mock_send_message.call_count, 0)

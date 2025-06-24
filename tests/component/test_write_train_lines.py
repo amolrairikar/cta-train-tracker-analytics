@@ -4,6 +4,7 @@ from unittest.mock import patch
 import os
 
 import boto3
+import botocore
 from moto import mock_aws
 
 from lambdas.write_train_lines.write_train_lines import lambda_handler
@@ -54,8 +55,7 @@ class TestWriteTrainLines(unittest.TestCase):
         self.assertEqual(len(messages['Messages']), 7)
 
     @mock_aws
-    def test_missing_sqs_queue_url(self):
-        """Test handling of missing SQS queue URL in environment variables."""
-        with patch.dict(os.environ, {}, clear=True):
-            with self.assertRaises(KeyError):
-                lambda_handler(self.mock_event, MockLambdaContext())
+    def test_missing_sqs_queue(self):
+        """Test handling of SQS queue that doesn't exist."""
+        with self.assertRaises(botocore.client.ClientError):
+            lambda_handler(self.mock_event, MockLambdaContext())
