@@ -10,7 +10,7 @@ import boto3
 from dotenv import load_dotenv
 import requests
 
-from .retry_api_exceptions import backoff_on_client_error
+from retry_api_exceptions import backoff_on_client_error
 
 # Load environment variables
 load_dotenv()

@@ -7,7 +7,7 @@ import boto3
 import botocore
 import botocore.exceptions
 from dotenv import load_dotenv
-from .retry_api_exceptions import backoff_on_client_error
+from retry_api_exceptions import backoff_on_client_error
 
 # Load environment variables
 load_dotenv()
