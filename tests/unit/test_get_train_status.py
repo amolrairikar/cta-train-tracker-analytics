@@ -200,7 +200,7 @@ class MockLambdaContext:
 
 
 class TestLambdaHandler(unittest.TestCase):
-    """Class for testing lambda_handler module."""
+    """Class for testing lambda_handler method."""
 
     def setUp(self):
         """Patch common dependencies before each test."""

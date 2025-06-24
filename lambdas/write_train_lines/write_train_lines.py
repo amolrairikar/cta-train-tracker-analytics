@@ -74,12 +74,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     logger.info(f'Lambda function version: {context.function_version}')
     logger.info(f'Event: {event}')
 
-    try:
-        queue_name = os.environ['SQS_QUEUE_NAME']
-        logger.info('SQS queue name: %s', queue_name)
-    except KeyError as e:
-        logger.error('Environment variable SQS_QUEUE_NAME not set: %s', e)
-        raise
+    queue_name = os.environ['SQS_QUEUE_NAME']
+    logger.info('SQS queue name: %s', queue_name)
 
     sqs = boto3.client('sqs', region_name=os.environ['REGION_NAME'])
     queue_url = get_sqs_queue_url(
