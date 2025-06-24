@@ -25,17 +25,19 @@ jobs:
           pip install pipenv
           pipenv install --dev
 
-      - name: Copy retry_api_exceptions.py file
+      - name: Copy retry_api_exceptions.py file for testing
         run: |
           wget --tries=3 https://raw.githubusercontent.com/amolrairikar/aws-account-infrastructure-setup/refs/heads/main/layers/retry_api_exceptions/retry_api_exceptions.py
           cp retry_api_exceptions.py lambdas/write_train_lines/retry_api_exceptions.py
           cp retry_api_exceptions.py lambdas/get_train_status/retry_api_exceptions.py
 
-      - name: Get test script and run tests
+      - name: Run unit tests
         run: |
-          wget --tries=3 https://raw.githubusercontent.com/amolrairikar/aws-account-infrastructure-setup/refs/heads/main/scripts/run_tests.sh
-          chmod +x run_tests.sh
-          ./run_tests.sh --source lambdas --omit "lambdas/write_train_lines/retry_api_exceptions.py,lambdas/get_train_status/retry_api_exceptions.py"
+          pipenv run coverage run --source=lambdas -m unittest discover -s tests/unit -v
+          pipenv run coverage report --omit=lambdas/write_train_lines/retry_api_exceptions.py,lambdas/get_train_status/retry_api_exceptions.py --fail-under=80
+
+      - name: Run component tests
+        run: pipenv run coverage run --source=lambdas -m unittest discover -s tests/component -v
 
   build_lambdas:
     runs-on: ubuntu-latest

@@ -10,7 +10,7 @@ import boto3
 from dotenv import load_dotenv
 import requests
 
-from retry_api_exceptions import backoff_on_client_error
+from .retry_api_exceptions import backoff_on_client_error
 
 # Load environment variables
 load_dotenv()
@@ -51,7 +51,7 @@ def write_train_location_data(output_data: List[Dict[str, Any]]):
     logger.info('Attempting to write output data to S3')
     s3.put_object(
         Bucket=os.environ['S3_BUCKET_NAME'],
-        Key=f'raw/{datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')}.json',
+        Key=f'raw/load_date={datetime.date.today().strftime('%Y-%m-%d')}/{datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')}.json',
         Body=json_data,
         ContentType='application/json'
     )
@@ -95,7 +95,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                         'TrainDelayed': train['isDly']
                     }
                 )
-            write_train_location_data(output_data=output_data, today_date=today)
+            write_train_location_data(output_data=output_data)
         else:
             logger.info('No trains running currently')
             return {
