@@ -10,6 +10,8 @@ permissions:
 jobs:
   get_test_coverage:
     runs-on: ubuntu-latest
+    env:
+      API_KEY: ${{ secrets.CTA_TRAIN_TRACKER_API_KEY }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -38,6 +40,9 @@ jobs:
 
       - name: Run component tests
         run: pipenv run coverage run --source=lambdas -m unittest discover -s tests/component -v
+
+      - name: Run integration tests
+        run: pipenv run python -m unittest discover -s tests/integration -v
 
   build_lambdas:
     runs-on: ubuntu-latest
