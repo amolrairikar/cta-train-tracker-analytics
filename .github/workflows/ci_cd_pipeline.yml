@@ -95,7 +95,7 @@ jobs:
           chmod +x ./build_lambda_package.sh
           ./build_lambda_package.sh "${{ matrix.lambda.name }}" "${{ matrix.lambda.handler_file }}" "${{ matrix.lambda.path }}"
 
-      - name: Upload Lambda layer to S3
+      - name: Upload Lambda package to S3
         if: steps.detect_lambda_change.outputs.changed == 'true'
         run: |
           aws s3 cp "${{ matrix.lambda.path }}/${{ matrix.lambda.name }}.zip" \
