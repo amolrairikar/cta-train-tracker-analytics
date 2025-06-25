@@ -289,3 +289,17 @@ module "firehose_output_s3_glue_table" {
     }
   ]
 }
+
+module "firehose_s3_delivery_stream" {
+  source               = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/firehose-s3-destination?ref=main"
+  environment          = var.environment
+  project              = var.project_name
+  firehose_stream_name = "test-firehose-stream"
+  firehose_role_arn    = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/firehose-role"
+  s3_bucket_arn        = module.cta_project_data_bucket.bucket_arn
+  time_zone            = "America/Chicago"
+  glue_database_name   = "${var.environment}_glue_catalog_database"
+  glue_table_name      = "cta_train_analytics_api_parquet_data"
+  buffering_interval   = 3600
+  log_group_name       = "test-firehose-log-group"
+}
