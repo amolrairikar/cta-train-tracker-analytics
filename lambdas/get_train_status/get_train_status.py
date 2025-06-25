@@ -50,9 +50,11 @@ def write_train_location_data(output_data: List[Dict[str, Any]]):
     json_data = json.dumps(output_data, indent=4)
     logger.info('Attempting to write output data to S3')
     timezone = zoneinfo.ZoneInfo('America/Chicago')
+    current_time = datetime.datetime.now(timezone)
+    current_date = current_time.date().strftime('%Y-%m-%d')
     s3.put_object(
         Bucket=os.environ['S3_BUCKET_NAME'],
-        Key=f'raw/load_date={datetime.date.today(timezone).strftime('%Y-%m-%d')}/{datetime.datetime.now(timezone).strftime('%Y%m%d%H%M%S%f')}.json',
+        Key=f'raw/load_date={current_date}/{current_time.strftime('%Y%m%d%H%M%S%f')}.json',
         Body=json_data,
         ContentType='application/json'
     )
