@@ -241,3 +241,51 @@ module "sqs_lambda_trigger" {
   trigger_enabled     = false
   batch_size          = 1
 }
+
+module "firehose_output_s3_glue_table" {
+  source            = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/glue-table?ref=main"
+  database_name     = "${var.environment}_glue_catalog_database"
+  table_name        = "cta_train_analytics_api_parquet_data"
+  table_description = "Glue table containing metadata for CTA API data written from Firehose"
+  s3_location       = "s3://cta-train-analytics-app-data-lake-${data.aws_caller_identity.current.account_id}-prod/raw"
+  columns           = [
+    {
+      name = "train_id",
+      type = "string"
+    },
+    {
+      name = "prediction_generated_timestamp",
+      type = "string"
+    },
+    {
+      name = "destination_station",
+      type = "string"
+    },
+    {
+      name = "next_station",
+      type = "string"
+    },
+    {
+      name = "next_station_arrival_time",
+      type = "string"
+    },
+    {
+      name = "approaching_station",
+      type = "string"
+    },
+    {
+      name = "is_delayed",
+      type = "string"
+    }
+  ]
+  partition_keys    = [
+    {
+      name = "year",
+      type = "string"
+    },
+    {
+      name = "month",
+      type = "string"
+    }
+  ]
+}
