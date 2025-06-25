@@ -300,6 +300,6 @@ module "firehose_s3_delivery_stream" {
   time_zone            = "America/Chicago"
   glue_database_name   = "${var.environment}_glue_catalog_database"
   glue_table_name      = "cta_train_analytics_api_parquet_data"
-  buffering_interval   = 3600
+  buffering_interval   = 900
   log_group_name       = "test-firehose-log-group"
 }
