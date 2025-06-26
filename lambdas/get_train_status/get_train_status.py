@@ -43,19 +43,37 @@ def get_train_locations(train_line_abbrev: str) -> Dict[str, Any]:
     return locations
 
 
+def dictionary_to_firehose_record(data):
+    """Converts a python dictionary into a format that Firehose accepts."""
+    json_line = json.dumps(data) + "\n"
+    return {'Data': json_line.encode('utf-8')}
+
+
 @backoff_on_client_error
-def write_train_location_data(output_data: List[Dict[str, Any]]):
-    """Writes train location data to Firehose."""
-    s3 = boto3.client('s3')
-    json_data = json.dumps(output_data, indent=4)
-    logger.info('Attempting to write output data to Firehose')
-    s3.put_object(
-        Bucket=os.environ['S3_BUCKET_NAME'],
-        Key=f'raw/test.json',
-        Body=json_data,
-        ContentType='application/json'
-    )
-    logger.info('Successfully wrote data to Firehose')
+def write_train_location_data(data_to_write: List[Dict[str, Any]], max_retries: int):
+    """Writes train location data to Firehose. If errors occur, retries until retry_attempts
+        are exhausted."""
+    firehose = boto3.client('firehose')
+    remaining = [dictionary_to_firehose_record(data) for data in data_to_write]
+    attempts = 0
+    while remaining and attempts < max_retries:
+        response = firehose.put_record_batch(
+            DeliveryStreamName='cta-train-analytics-stream',
+            Records=remaining
+        )
+        failed_count = response['FailedPutCount']
+        if failed_count > 0:
+            logger.info(f'{failed_count} records failed on attempt {attempts}, retrying batch send with failed records')
+            failed_records = [
+                remaining[i] for i, r in enumerate(response['RequestResponses']) if 'ErrorCode' in r
+            ]
+            remaining = failed_records
+            attempts += 1
+        else:
+            return
+
+    if remaining:
+        raise Exception(f'Failed to send {len(remaining)} records after {max_retries} retries.')
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -68,8 +86,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     logger.info(f'Event: {event}')
 
     timezone = zoneinfo.ZoneInfo('America/Chicago')
-    today = datetime.datetime.now(timezone).date()
-    today_date = today.strftime('%Y-%m-%d')
+    today = datetime.datetime.now(timezone)
+    today_date = today.date().strftime('%Y-%m-%d')
+    today_datetime = today.isoformat()
 
     sqs_message_body = event.get('Records', [])[0].get('body', '')
     train_line_abbrev = json.loads(sqs_message_body).get('train_line_abbrev', '')
@@ -82,20 +101,21 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     if trains:
         trains_in_service = trains[0].get('train', [])
         if trains_in_service:
-            output_data = []
+            train_location_data = []
             for train in trains_in_service:
-                output_data.append(
+                train_location_data.append(
                     {
-                        'TrainId': f'{today_date}#{train_line}#{train['rn']}#{train['trDr']}',
-                        'PredictionGeneratedTimestamp': train['prdt'],
-                        'DestinationStation': train['destNm'],
-                        'NextStation': train['nextStaNm'],
-                        'NextStationArrivalTime': train['arrT'],
-                        'ApproachingStation': train['isApp'],
-                        'TrainDelayed': train['isDly']
+                        'train_id': f'{today_date}#{train_line}#{train['rn']}#{train['trDr']}',
+                        'current_timestamp': today_datetime,
+                        'prediction_generated_timestamp': train['prdt'],
+                        'destination_station': train['destNm'],
+                        'next_station': train['nextStaNm'],
+                        'next_station_arrival_time': train['arrT'],
+                        'is_approaching_station': train['isApp'],
+                        'is_train_delayed': train['isDly']
                     }
                 )
-            write_train_location_data(output_data=output_data)
+            write_train_location_data(data_to_write=train_location_data, max_retries=5)
         else:
             logger.info('No trains running currently')
             return {

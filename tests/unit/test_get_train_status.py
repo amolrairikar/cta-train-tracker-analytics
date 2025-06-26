@@ -10,7 +10,8 @@ import botocore
 import botocore.exceptions
 import requests
 
-from lambdas.get_train_status.get_train_status import get_train_locations, write_train_location_data, lambda_handler
+from lambdas.get_train_status.get_train_status import get_train_locations, dictionary_to_firehose_record, \
+    write_train_location_data, lambda_handler
 from tests.helper_files.mock_train_location_response import MOCK_TRAIN_LOCATION_RESPONSE
 from tests.helper_files.mock_train_location_response_no_trains import MOCK_TRAIN_LOCATION_NO_TRAINS_RESPONSE
 from tests.helper_files.mock_train_location_response_no_route_object import MOCK_TRAIN_LOCATION_NO_ROUTE_OBJECT
@@ -105,88 +106,178 @@ class TestGetTrainLocations(unittest.TestCase):
         self.assertEqual(mock_get.call_count, 3)
 
 
+class TestDictionaryToFirehoseRecord(unittest.TestCase):
+    """Class for testing dictionary_to_firehose_records method."""
+
+    def test_basic_dict(self):
+        """Tests converting a basic dictionary into Firehose format."""
+        data = {'foo': 'bar', 'num': 123}
+
+        result = dictionary_to_firehose_record(data)
+
+        self.assertIsInstance(result, dict)
+        self.assertIn('Data', result)
+        self.assertIsInstance(result['Data'], bytes)
+        decoded = result['Data'].decode('utf-8')
+        self.assertTrue(decoded.endswith('\n'))
+        json_obj = json.loads(decoded.strip())
+        self.assertEqual(json_obj, data)
+
+    def test_empty_dict(self):
+        """Tests converting an empty dictionary into Firehose format."""
+        data = {}
+
+        result = dictionary_to_firehose_record(data)
+
+        self.assertIsInstance(result, dict)
+        self.assertIn('Data', result)
+        self.assertIsInstance(result['Data'], bytes)
+        decoded = result['Data'].decode('utf-8')
+        self.assertTrue(decoded.endswith('\n'))
+        self.assertEqual(decoded, '{}\n')
+
+    def test_nested_dict(self):
+        """Tests converting a nested dictionary into Firehose format."""
+        data = {'outer': {'inner': [1, 2, 3]}, 'flag': True}
+
+        result = dictionary_to_firehose_record(data)
+
+        self.assertIsInstance(result, dict)
+        self.assertIn('Data', result)
+        self.assertIsInstance(result['Data'], bytes)
+        decoded = result['Data'].decode('utf-8')
+        json_obj = json.loads(decoded.strip())
+        self.assertEqual(json_obj, data)
+
+    def test_special_characters(self):
+        """Tests converting a dictionary with special characters into Firehose format."""
+        data = {'text': 'newline\nquote"backslash\\'}
+
+        result = dictionary_to_firehose_record(data)
+
+        self.assertIsInstance(result, dict)
+        self.assertIn('Data', result)
+        self.assertIsInstance(result['Data'], bytes)
+        decoded = result['Data'].decode('utf-8')
+        json_obj = json.loads(decoded.strip())
+        self.assertEqual(json_obj, data)
+
+
 class TestWriteTrainLocationData(unittest.TestCase):
     """Class for testing write_train_location_data method."""
 
     def setUp(self):
         """Patch environment variables and common dependencies before each test."""
-        self.env_patcher = patch.dict(
-            os.environ,
-            {
-                'S3_BUCKET_NAME': 'test-bucket'
-            }
-        )
-        self.output_data = [{'foo': 'bar'}]
-        self.env_patcher.start()
-
-    def tearDown(self):
-        """Stop all patches after each test."""
-        self.env_patcher.stop()
+        self.data_to_write = [{'foo': 'bar'}]
 
     @patch('lambdas.get_train_status.get_train_status.boto3.client')
     def test_write_train_location_data_success(self, mock_boto_client):
         """Tests a successful write to S3 of train location data."""
-        mock_s3 = MagicMock()
-        mock_boto_client.return_value = mock_s3
+        mock_firehose = MagicMock()
+        mock_firehose.put_record_batch.return_value = {
+            'FailedPutCount': 0,
+            'Encrypted': True
+        }
+        mock_boto_client.return_value = mock_firehose
 
-        write_train_location_data(output_data=self.output_data)
+        write_train_location_data(data_to_write=self.data_to_write, max_retries=5)
 
-        # Using this method to check call args to avoid mocking datetime.datetime.now
-        _, kwargs = mock_s3.put_object.call_args
-        self.assertEqual(kwargs['Bucket'], 'test-bucket')
-        self.assertTrue(kwargs['Key'].startswith('raw/'))
-        self.assertTrue(kwargs['Key'].endswith('.json'))
-        self.assertIn('"foo": "bar"', kwargs['Body'])
-        self.assertEqual(kwargs['ContentType'], 'application/json')
+        mock_firehose.put_record_batch.assert_called_once_with(
+            DeliveryStreamName='cta-train-analytics-stream',
+            Records=[dictionary_to_firehose_record(data) for data in self.data_to_write]
+        )
 
-    def test_write_train_location_data_missing_env_variable(self):
-        """Tests a non-retryable boto3 exception with writing data to S3."""
-        del os.environ['S3_BUCKET_NAME']
+    @patch('lambdas.get_train_status.get_train_status.boto3.client')
+    def test_failed_initial_batch_write(self, mock_boto_client):
+        """Tests an initial failed batch write and subsequent successful batch write."""
+        mock_firehose = MagicMock()
+        mock_firehose.put_record_batch.side_effect = [
+            {
+                'FailedPutCount': 1,
+                'Encrypted': True,
+                'RequestResponses': [
+                    {
+                        'RecordId': '0',
+                        'ErrorCode': 'FailedBatchWrite',
+                        'ErrorMessage': 'Batch writing records failed'
+                    }
+                ]
+            },
+            {
+                'FailedPutCount': 0,
+                'Encrypted': True
+            }
+        ]
+        mock_boto_client.return_value = mock_firehose
 
-        with self.assertRaises(KeyError):
-            write_train_location_data(output_data=self.output_data)
+        write_train_location_data(data_to_write=self.data_to_write, max_retries=5)
+
+        mock_firehose.put_record_batch.assert_called_with(
+            DeliveryStreamName='cta-train-analytics-stream',
+            Records=[dictionary_to_firehose_record(data) for data in self.data_to_write]
+        )
+        self.assertEqual(mock_firehose.put_record_batch.call_count, 2)
+
+    @patch('lambdas.get_train_status.get_train_status.boto3.client')
+    def test_failed_all_batch_writes(self, mock_boto_client):
+        """Tests when retry attempts are exhausted for batch write."""
+        mock_firehose = MagicMock()
+        mock_firehose.put_record_batch.return_value = {
+            'FailedPutCount': 1,
+            'Encrypted': True,
+            'RequestResponses': [
+                {
+                    'RecordId': '0',
+                    'ErrorCode': 'FailedBatchWrite',
+                    'ErrorMessage': 'Batch writing records failed'
+                }
+            ]
+        }
+        mock_boto_client.return_value = mock_firehose
+
+        with self.assertRaises(Exception):
+            write_train_location_data(data_to_write=self.data_to_write, max_retries=5)
+
+        mock_firehose.put_record_batch.assert_called_with(
+            DeliveryStreamName='cta-train-analytics-stream',
+            Records=[dictionary_to_firehose_record(data) for data in self.data_to_write]
+        )
+        self.assertEqual(mock_firehose.put_record_batch.call_count, 5)
 
     @patch('lambdas.get_train_status.get_train_status.boto3.client')
     def test_write_train_location_data_boto3_error(self, mock_boto_client):
-        """Tests a non-retryable boto3 exception with writing data to S3."""
-        mock_s3 = MagicMock()
-        mock_s3.put_object.side_effect = botocore.exceptions.ClientError(
-            error_response={'Error': {'Code': 'AccessDenied'}},
-            operation_name='PutObject'
+        """Tests a non-retryable boto3 exception with writing data to Firehose."""
+        mock_firehose = MagicMock()
+        mock_firehose.put_record_batch.side_effect = botocore.exceptions.ClientError(
+            error_response={'Error': {'Code': 'ResourceNotFoundException'}},
+            operation_name='PutRecordBatch'
         )
-        mock_boto_client.return_value = mock_s3
+        mock_boto_client.return_value = mock_firehose
         with self.assertRaises(botocore.exceptions.ClientError):
-            write_train_location_data(output_data=self.output_data)
+            write_train_location_data(data_to_write=self.data_to_write, max_retries=5)
 
-        # Using this method to check call args to avoid mocking datetime.datetime.now
-        _, kwargs = mock_s3.put_object.call_args
-        self.assertEqual(kwargs['Bucket'], 'test-bucket')
-        self.assertTrue(kwargs['Key'].startswith('raw/'))
-        self.assertTrue(kwargs['Key'].endswith('.json'))
-        self.assertIn('"foo": "bar"', kwargs['Body'])
-        self.assertEqual(kwargs['ContentType'], 'application/json')
+        mock_firehose.put_record_batch.assert_called_once_with(
+            DeliveryStreamName='cta-train-analytics-stream',
+            Records=[dictionary_to_firehose_record(data) for data in self.data_to_write]
+        )
 
     @patch('lambdas.get_train_status.get_train_status.boto3.client')
     def test_write_train_location_data_boto3_retryable_error(self, mock_boto_client):
-        """Tests a retryable boto3 exception with writing data to S3."""
-        mock_s3 = MagicMock()
-        mock_s3.put_object.side_effect = botocore.exceptions.ClientError(
+        """Tests a retryable boto3 exception with calling put_record_batch retries 3 times."""
+        mock_firehose = MagicMock()
+        mock_firehose.put_record_batch.side_effect = botocore.exceptions.ClientError(
             error_response={'Error': {'Code': 'InternalServerError'}},
-            operation_name='PutObject'
+            operation_name='PutRecordBatch'
         )
-        mock_boto_client.return_value = mock_s3
+        mock_boto_client.return_value = mock_firehose
         with self.assertRaises(botocore.exceptions.ClientError):
-            write_train_location_data(output_data=self.output_data)
+            write_train_location_data(data_to_write=self.data_to_write, max_retries=5)
 
-        # Using this method to check call args to avoid mocking datetime.datetime.now
-        _, kwargs = mock_s3.put_object.call_args
-        self.assertEqual(kwargs['Bucket'], 'test-bucket')
-        self.assertTrue(kwargs['Key'].startswith('raw/'))
-        self.assertTrue(kwargs['Key'].endswith('.json'))
-        self.assertIn('"foo": "bar"', kwargs['Body'])
-        self.assertEqual(kwargs['ContentType'], 'application/json')
-
-        self.assertEqual(mock_s3.put_object.call_count, 3)
+        mock_firehose.put_record_batch.assert_called_with(
+            DeliveryStreamName='cta-train-analytics-stream',
+            Records=[dictionary_to_firehose_record(data) for data in self.data_to_write]
+        )
+        self.assertEqual(mock_firehose.put_record_batch.call_count, 3)
 
 
 class MockLambdaContext:
@@ -229,19 +320,35 @@ class TestLambdaHandler(unittest.TestCase):
 
     @patch('lambdas.get_train_status.get_train_status.get_train_locations')
     @patch('lambdas.get_train_status.get_train_status.write_train_location_data')
-    def test_lambda_handler_success(self, mock_train_locations_write, mock_train_locations):
+    @patch('lambdas.get_train_status.get_train_status.datetime')
+    def test_lambda_handler_success(self, mock_datetime, mock_train_locations_write, mock_train_locations):
         """Tests successful (happy path) lambda_handler invocation."""
+        mock_current_timestamp = datetime.datetime(
+            year=2025,
+            month=6,
+            day=25,
+            hour=10,
+            minute=30,
+            second=25,
+            microsecond=45,
+            tzinfo=zoneinfo.ZoneInfo('America/Chicago')
+        )
+        mock_current_date = mock_current_timestamp.date()
+        mock_datetime.datetime.now.return_value = mock_current_timestamp
+        mock_datetime.datetime.side_effect = lambda *args, **kwargs: datetime.datetime(*args, **kwargs)
+        mock_datetime.datetime.now.date.return_value = mock_current_date
         mock_train_locations_write.return_value = None
         mock_train_locations.return_value = MOCK_TRAIN_LOCATION_RESPONSE
         expected_output_data = [
             {
-                'TrainId': f'{self.today_date}#Purple#110#5',
-                'PredictionGeneratedTimestamp': '2025-06-20T12:42:56',
-                'DestinationStation': 'Forest Park',
-                'NextStation': 'Belmont',
-                'NextStationArrivalTime': '2025-06-20T12:43:56',
-                'ApproachingStation': '1',
-                'TrainDelayed': '0'
+                'train_id': f'{mock_current_date}#Purple#110#5',
+                'current_timestamp': mock_current_timestamp.isoformat(),
+                'prediction_generated_timestamp': '2025-06-20T12:42:56',
+                'destination_station': 'Forest Park',
+                'next_station': 'Belmont',
+                'next_station_arrival_time': '2025-06-20T12:43:56',
+                'is_approaching_station': '1',
+                'is_train_delayed': '0'
             }
         ]
 
@@ -249,7 +356,6 @@ class TestLambdaHandler(unittest.TestCase):
             event=self.mock_event,
             context=MockLambdaContext()
         )
-        _, kwargs = mock_train_locations_write.call_args
 
         self.assertEqual(
             response,
@@ -258,7 +364,10 @@ class TestLambdaHandler(unittest.TestCase):
                 'body': 'Execution successful'
             }
         )
-        assert expected_output_data == kwargs['output_data']
+        mock_train_locations_write.assert_called_once_with(
+            data_to_write=expected_output_data,
+            max_retries=5
+        )
 
     def test_lambda_handler_missing_train_abbrev(self):
         """Tests lambda handler invocation with missing train_abbrev parameter in SQS message body."""

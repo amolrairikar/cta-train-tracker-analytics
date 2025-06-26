@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       API_KEY: ${{ secrets.CTA_TRAIN_TRACKER_API_KEY }}
+      AWS_DEFAULT_REGION: us-east-2
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
