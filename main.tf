@@ -168,10 +168,10 @@ data "aws_iam_policy_document" "lambda_get_cta_train_status_execution_role_inlin
   statement {
     effect    = "Allow"
     actions = [
-      "s3:PutObject"
+      "firehose:PutRecordBatch"
     ]
     resources = [
-      "arn:aws:s3:::${module.cta_project_data_bucket.bucket_id}/*"
+      "arn:aws:firehose:${var.aws_region_name}:${data.aws_caller_identity.current.account_id}:cta-train-analytics-stream"
     ]
   }
   statement {
