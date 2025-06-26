@@ -171,7 +171,7 @@ data "aws_iam_policy_document" "lambda_get_cta_train_status_execution_role_inlin
       "firehose:PutRecordBatch"
     ]
     resources = [
-      "arn:aws:firehose:${var.aws_region_name}:${data.aws_caller_identity.current.account_id}:cta-train-analytics-stream"
+      "arn:aws:firehose:${var.aws_region_name}:${data.aws_caller_identity.current.account_id}:deliverystream/cta-train-analytics-stream"
     ]
   }
   statement {
