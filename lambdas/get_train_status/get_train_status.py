@@ -55,8 +55,10 @@ def write_train_location_data(data_to_write: List[Dict[str, Any]], max_retries: 
         are exhausted."""
     firehose = boto3.client('firehose')
     remaining = [dictionary_to_firehose_record(data) for data in data_to_write]
+    logger.info('Converted incoming data into format for Firehose')
     attempts = 0
     while remaining and attempts < max_retries:
+        logger.info('Attempt %s:', str(attempts))
         response = firehose.put_record_batch(
             DeliveryStreamName='cta-train-analytics-stream',
             Records=remaining
@@ -70,6 +72,7 @@ def write_train_location_data(data_to_write: List[Dict[str, Any]], max_retries: 
             remaining = failed_records
             attempts += 1
         else:
+            logger.info(f'Successfully wrote all records to Firehose')
             return
 
     if remaining:
@@ -96,11 +99,13 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     if not train_line_abbrev or not train_line:
         raise ValueError('Parameters train_line_abbrev and/or train_line were not present in the SQS message payload.')
 
+    logger.info('Retrieved train_line_abbrev and train_line from SQS message body')
     locations = get_train_locations(train_line_abbrev=train_line_abbrev)
     trains = locations.get('ctatt', {}).get('route', [])
     if trains:
         trains_in_service = trains[0].get('train', [])
         if trains_in_service:
+            logger.info('Found at least one train currently running, parsing train location data')
             train_location_data = []
             for train in trains_in_service:
                 train_location_data.append(
