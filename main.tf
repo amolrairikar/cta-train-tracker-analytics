@@ -251,5 +251,5 @@ module "firehose_s3_delivery_stream" {
   time_zone            = "America/Chicago"
   buffering_size       = 64
   buffering_interval   = 900
-  log_group_name       = "${var.project_name}_firehose_log_group"
+  log_retention_days   = 7
 }
