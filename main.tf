@@ -230,7 +230,6 @@ module "cta_get_train_status_lambda" {
   log_retention_days             = 7
   lambda_environment_variables = {
     API_KEY = var.cta_train_tracker_api_key
-    S3_BUCKET_NAME = module.cta_project_data_bucket.bucket_id
   }
 }
 
@@ -238,7 +237,7 @@ module "sqs_lambda_trigger" {
   source              = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/sqs-lambda-trigger?ref=main"
   sqs_queue_arn       = module.sqs_queue.queue_arn
   lambda_function_arn = module.cta_get_train_status_lambda.lambda_arn
-  trigger_enabled     = false
+  trigger_enabled     = true
   batch_size          = 1
 }
 
@@ -246,11 +245,11 @@ module "firehose_s3_delivery_stream" {
   source               = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/firehose-s3-destination?ref=main"
   environment          = var.environment
   project              = var.project_name
-  firehose_stream_name = "test-firehose-stream"
+  firehose_stream_name = "cta-train-analytics-stream"
   firehose_role_arn    = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/firehose-role"
   s3_bucket_arn        = module.cta_project_data_bucket.bucket_arn
   time_zone            = "America/Chicago"
   buffering_size       = 64
   buffering_interval   = 900
-  log_group_name       = "test-firehose-log-group"
+  log_group_name       = "${var.project_name}_firehose_log_group"
 }

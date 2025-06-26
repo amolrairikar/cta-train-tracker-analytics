@@ -48,17 +48,7 @@ class TestGetTrainStatus(unittest.TestCase):
                 }
             ]
         }
-        self.env_patcher = patch.dict(
-            os.environ,
-            {
-                'S3_BUCKET_NAME': 'test-bucket'
-            }
-        )
-        self.env_patcher.start()
-
-    def tearDown(self):
-        """Stop all patches after each test."""
-        self.env_patcher.stop()
+        self.delivery_stream_name = 'cta-train-analytics-stream'
 
     @mock_aws
     @patch('lambdas.get_train_status.get_train_status.get_train_locations')
@@ -69,6 +59,15 @@ class TestGetTrainStatus(unittest.TestCase):
             Bucket='test-bucket',
             CreateBucketConfiguration={
                 'LocationConstraint': 'us-east-2'
+            }
+        )
+        firehose = boto3.client('firehose')
+        firehose.create_delivery_stream(
+            DeliveryStreamName=self.delivery_stream_name,
+            ExtendedS3DestinationConfiguration={
+                'RoleARN': 'arn:test-role',
+                'BucketARN': 'arn:test-bucket',
+                'Prefix': 'raw/'
             }
         )
         mock_train_locations.return_value = MOCK_TRAIN_LOCATION_RESPONSE
@@ -88,8 +87,8 @@ class TestGetTrainStatus(unittest.TestCase):
 
     @mock_aws
     @patch('lambdas.get_train_status.get_train_status.get_train_locations')
-    def test_lambda_handler_missing_s3_bucket(self, mock_train_locations):
-        """Tests the lambda_handler invocation if the target S3 bucket does not exist."""
+    def test_lambda_handler_missing_firehose_stream(self, mock_train_locations):
+        """Tests the lambda_handler invocation if the target firehose delivery stream does not exist."""
         mock_train_locations.return_value = MOCK_TRAIN_LOCATION_RESPONSE
 
         with self.assertRaises(botocore.client.ClientError):
