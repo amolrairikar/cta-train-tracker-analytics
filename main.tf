@@ -153,6 +153,21 @@ module "cta_project_data_bucket" {
   object_ownership  = "BucketOwnerEnforced"
 }
 
+resource "aws_s3_bucket_lifecycle_configuration" "code_bucket_lifecycle_config" {
+  bucket = module.cta_project_data_bucket.bucket_id
+
+  rule {
+    id      = "Expire data older than 3 days"
+    status  = "Enabled"
+    filter {
+      prefix = "raw/"
+    }
+    expiration {
+      days = 3
+    }
+  }
+}
+
 data "aws_iam_policy_document" "lambda_get_cta_train_status_execution_role_inline_policy_document" {
   statement {
     effect    = "Allow"
