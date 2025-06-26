@@ -333,7 +333,7 @@ class TestLambdaHandler(unittest.TestCase):
             microsecond=45,
             tzinfo=zoneinfo.ZoneInfo('America/Chicago')
         )
-        mock_current_date = datetime.date(year=2025, month=6, day=25)
+        mock_current_date = mock_current_timestamp.date()
         mock_datetime.datetime.now.return_value = mock_current_timestamp
         mock_datetime.datetime.side_effect = lambda *args, **kwargs: datetime.datetime(*args, **kwargs)
         mock_datetime.datetime.now.date.return_value = mock_current_date
@@ -341,7 +341,7 @@ class TestLambdaHandler(unittest.TestCase):
         mock_train_locations.return_value = MOCK_TRAIN_LOCATION_RESPONSE
         expected_output_data = [
             {
-                'train_id': f'{self.today_date}#Purple#110#5',
+                'train_id': f'{mock_current_date}#Purple#110#5',
                 'current_timestamp': mock_current_timestamp.isoformat(),
                 'prediction_generated_timestamp': '2025-06-20T12:42:56',
                 'destination_station': 'Forest Park',
