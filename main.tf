@@ -272,7 +272,7 @@ module "firehose_s3_delivery_stream" {
 module "bucket_raw_data_lambda_trigger" {
   source               = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/eventbridge-scheduler?ref=main"
   eventbridge_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/eventbridge-role"
-  lambda_arn           = module.bucket_raw_data_lambda.lambda_arn
+  lambda_arn           = module.cta_bucket_raw_data_lambda.lambda_arn
   schedule_frequency   = "cron(1 0 * * ? *)"
   schedule_timezone    = "America/Chicago"
   schedule_state       = "ENABLED"
