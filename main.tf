@@ -167,10 +167,20 @@ resource "aws_s3_bucket_lifecycle_configuration" "code_bucket_lifecycle_config" 
   bucket = module.cta_project_data_bucket.bucket_id
 
   rule {
-    id      = "Expire data older than 3 days"
+    id      = "Expire raw data older than 3 days"
     status  = "Enabled"
     filter {
       prefix = "raw/"
+    }
+    expiration {
+      days = 3
+    }
+  }
+  rule {
+    id      = "Expire processed data older than 3 days"
+    status  = "Enabled"
+    filter {
+      prefix = "processed/"
     }
     expiration {
       days = 3
