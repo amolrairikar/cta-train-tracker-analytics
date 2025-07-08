@@ -373,7 +373,10 @@ module "cta_bucket_raw_data_lambda" {
   s3_bucket_name                 = "lambda-source-code-${data.aws_caller_identity.current.account_id}-bucket"
   s3_object_key                  = "cta_bucket_raw_data.zip"
   s3_object_version              = data.aws_s3_object.bucket_raw_data_zip.version_id
-  lambda_layers                  = [data.aws_lambda_layer_version.pyarrow_layer.arn]
+  lambda_layers                  = [
+    data.aws_lambda_layer_version.pyarrow_layer.arn,
+    data.aws_lambda_layer_version.latest_retry_api.arn
+  ]
   sns_topic_arn                  = "arn:aws:sns:${var.aws_region_name}:${data.aws_caller_identity.current.account_id}:lambda-failure-notification-topic"
   log_retention_days             = 7
   lambda_environment_variables = {
