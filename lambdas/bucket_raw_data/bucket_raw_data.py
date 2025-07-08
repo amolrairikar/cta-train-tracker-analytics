@@ -53,7 +53,7 @@ def read_s3_object(s3_client: boto3.client, bucket_name: str, key: str) -> List[
     return records
 
 
-def write_local_parquet_file(data: List[Dict[str, Any]], partition_date: str) -> None:
+def write_local_parquet_file(data: List[Dict[str, Any]]) -> None:
     """Writes the provided data to a Parquet file at /tmp directory."""
     table = pa.Table.from_pylist(data)
     output_dir = f'/tmp'
@@ -83,7 +83,6 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     timezone = zoneinfo.ZoneInfo('America/Chicago')
     prev_day = datetime.datetime.now(timezone) - datetime.timedelta(days=1)
-    partition_date = f'{prev_day.year}/{prev_day.month:02d}/{prev_day.day:02d}'
 
     s3 = boto3.client('s3')
     s3_bucket_name = os.environ['S3_BUCKET_NAME']
@@ -91,7 +90,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     json_files = get_object_keys(
         s3_client=s3,
         bucket_name=s3_bucket_name,
-        prefix=f'raw/{partition_date}/'
+        prefix=f'raw/{prev_day.year}/{prev_day.month:02d}/{prev_day.day:02d}/'
     )
     json_data = []
     for file in json_files:
@@ -103,14 +102,13 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         json_data.extend(file_records)
     logger.info('Total records read from S3: %d', len(json_data))
     write_local_parquet_file(
-        data=json_data,
-        partition_date=partition_date
+        data=json_data
     )
     upload_parquet_to_s3(
         s3_client=s3,
         local_dir='/tmp',
         bucket_name=s3_bucket_name,
-        prefix=f'processed/{partition_date}/'
+        prefix=f'processed/load_date={prev_day.year}-{prev_day.month:02d}-{prev_day.day:02d}/'
     )
 
     return {
