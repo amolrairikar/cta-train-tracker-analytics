@@ -56,7 +56,7 @@ def read_s3_object(s3_client: boto3.client, bucket_name: str, key: str) -> List[
 def write_local_parquet_file(data: List[Dict[str, Any]], partition_date: str) -> None:
     """Writes the provided data to a Parquet file at /tmp directory."""
     table = pa.Table.from_pylist(data)
-    output_dir = f'/tmp/{partition_date}'
+    output_dir = f'/tmp'
     os.makedirs(name=output_dir, exist_ok=True)
     pq.write_table(table=table, where=f'{output_dir}/{uuid.uuid4()}.parquet')
 
