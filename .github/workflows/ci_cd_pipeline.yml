@@ -33,11 +33,12 @@ jobs:
           wget --tries=3 https://raw.githubusercontent.com/amolrairikar/aws-account-infrastructure-setup/refs/heads/main/layers/retry_api_exceptions/retry_api_exceptions.py
           cp retry_api_exceptions.py lambdas/write_train_lines/retry_api_exceptions.py
           cp retry_api_exceptions.py lambdas/get_train_status/retry_api_exceptions.py
+          cp retry_api_exceptions.py lambdas/bucket_raw_data/retry_api_exceptions.py
 
       - name: Run unit tests
         run: |
           pipenv run coverage run --source=lambdas -m unittest discover -s tests/unit -v
-          pipenv run coverage report --omit=lambdas/write_train_lines/retry_api_exceptions.py,lambdas/get_train_status/retry_api_exceptions.py --fail-under=80
+          pipenv run coverage report --omit=lambdas/write_train_lines/retry_api_exceptions.py,lambdas/get_train_status/retry_api_exceptions.py,lambdas/bucket_raw_data/retry_api_exceptions.py --fail-under=80
 
       - name: Run component tests
         run: pipenv run coverage run --source=lambdas -m unittest discover -s tests/component -v
@@ -57,6 +58,9 @@ jobs:
           - name: write_train_lines
             handler_file: write_train_lines.py
             path: lambdas/write_train_lines
+          - name: bucket_raw_data
+            handler_file: bucket_raw_data.py
+            path: lambdas/bucket_raw_data
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

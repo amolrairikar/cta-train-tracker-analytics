@@ -36,7 +36,7 @@ data "aws_caller_identity" "current" {}
 #   enable_ttl        = true
 # }
 
-module "eventbridge_scheduler" {
+module "write_train_lines_lambda_trigger" {
   source               = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/eventbridge-scheduler?ref=main"
   eventbridge_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/eventbridge-role"
   lambda_arn           = module.cta_write_train_lines_lambda.lambda_arn
@@ -267,4 +267,106 @@ module "firehose_s3_delivery_stream" {
   buffering_size       = 64
   buffering_interval   = 900
   log_retention_days   = 7
+}
+
+module "bucket_raw_data_lambda_trigger" {
+  source               = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/eventbridge-scheduler?ref=main"
+  eventbridge_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/eventbridge-role"
+  lambda_arn           = module.cta_bucket_raw_data_lambda.lambda_arn
+  schedule_frequency   = "cron(1 0 * * ? *)"
+  schedule_timezone    = "America/Chicago"
+  schedule_state       = "ENABLED"
+  scheduler_name       = "cta-bucket-raw-data-lambda-trigger"
+}
+
+data "aws_iam_policy_document" "lambda_bucket_raw_data_execution_role_inline_policy_document" {
+  statement {
+    effect    = "Allow"
+    actions = [
+      "s3:PutObject"
+    ]
+    resources = [
+      "arn:aws:s3:::${module.cta_project_data_bucket.bucket_id}/processed/*"
+    ]
+  }
+  statement {
+    effect    = "Allow"
+    actions = [
+      "s3:GetObject"
+    ]
+    resources = [
+      "arn:aws:s3:::${module.cta_project_data_bucket.bucket_id}/raw/*"
+    ]
+  }
+  statement {
+    effect    = "Allow"
+    actions   = [
+      "s3:ListBucket"
+    ]
+    resources = [
+      "arn:aws:s3:::${module.cta_project_data_bucket.bucket_id}"
+    ]
+    condition {
+      test     = "StringLike"
+      variable = "s3:prefix"
+      values   = ["raw/*", "processed/*"]
+    }
+  }
+  statement {
+    effect    = "Allow"
+    actions = [
+      "sns:Publish"
+    ]
+    resources = [
+      "arn:aws:sns:${var.aws_region_name}:${data.aws_caller_identity.current.account_id}:lambda-failure-notification-topic"
+    ]
+  }
+  statement {
+    effect    = "Allow"
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents"
+    ]
+    resources = [
+      "*"
+    ]
+  }
+}
+
+module "lambda_bucket_raw_data_execution_role" {
+  source                    = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/iam-role?ref=main"
+  role_name                 = "cta-lambda-bucket-raw-data-execution-role"
+  trust_relationship_policy = data.aws_iam_policy_document.lambda_trust_relationship_policy.json
+  inline_policy             = data.aws_iam_policy_document.lambda_bucket_raw_data_execution_role_inline_policy_document.json
+  inline_policy_description = "Inline policy for CTA train analytics bucket raw data Lambda function execution role"
+  environment               = var.environment
+  project                   = var.project_name
+}
+
+data aws_s3_object "bucket_raw_data_zip" {
+  bucket = "lambda-source-code-${data.aws_caller_identity.current.account_id}-bucket"
+  key    = "cta_bucket_raw_data.zip"
+}
+
+module "cta_bucket_raw_data_lambda" {
+  source                         = "git::https://github.com/amolrairikar/aws-account-infrastructure.git//modules/lambda?ref=main"
+  environment                    = var.environment
+  project                        = var.project_name
+  lambda_name                    = "cta-bucket-raw-data"
+  lambda_description             = "Lambda function to bucket raw JSON data from CTA API into Parquet files in S3"
+  lambda_handler                 = "bucket_raw_data.lambda_handler"
+  lambda_memory_size             = "256"
+  lambda_runtime                 = "python3.12"
+  lambda_timeout                 = 10
+  lambda_execution_role_arn      = module.lambda_bucket_raw_data_execution_role.role_arn
+  s3_bucket_name                 = "lambda-source-code-${data.aws_caller_identity.current.account_id}-bucket"
+  s3_object_key                  = "cta_bucket_raw_data.zip"
+  s3_object_version              = data.aws_s3_object.bucket_raw_data_zip.version_id
+  lambda_layers                  = [data.aws_lambda_layer_version.latest_retry_api.arn]
+  sns_topic_arn                  = "arn:aws:sns:${var.aws_region_name}:${data.aws_caller_identity.current.account_id}:lambda-failure-notification-topic"
+  log_retention_days             = 7
+  lambda_environment_variables = {
+    API_KEY = var.cta_train_tracker_api_key
+  }
 }
