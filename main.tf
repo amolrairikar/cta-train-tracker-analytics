@@ -380,6 +380,6 @@ module "cta_bucket_raw_data_lambda" {
   sns_topic_arn                  = "arn:aws:sns:${var.aws_region_name}:${data.aws_caller_identity.current.account_id}:lambda-failure-notification-topic"
   log_retention_days             = 7
   lambda_environment_variables = {
-    API_KEY = var.cta_train_tracker_api_key
+    S3_BUCKET_NAME = module.cta_project_data_bucket.bucket_id
   }
 }
