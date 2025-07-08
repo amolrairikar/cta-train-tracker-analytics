@@ -53,24 +53,20 @@ def read_s3_object(s3_client: boto3.client, bucket_name: str, key: str) -> List[
     return records
 
 
-def write_local_parquet_file(data: List[Dict[str, Any]]) -> None:
+def write_local_parquet_file(data: List[Dict[str, Any]]) -> str:
     """Writes the provided data to a Parquet file at /tmp directory."""
     table = pa.Table.from_pylist(data)
-    output_dir = f'/tmp'
-    os.makedirs(name=output_dir, exist_ok=True)
-    pq.write_table(table=table, where=f'{output_dir}/{uuid.uuid4()}.parquet')
+    output_path = f'/tmp/{uuid.uuid4()}.parquet'
+    pq.write_table(table=table, where=output_path)
+    return output_path
 
 
 @backoff_on_client_error
-def upload_parquet_to_s3(s3_client: boto3.client, local_dir: str, bucket_name: str, prefix: str) -> None:
-    """Uploads Parquet files from the local directory to the specified S3 bucket and prefix."""
-    for root, _, files in os.walk(local_dir):
-        for file in files:
-            local_path = os.path.join(root, file)
-            relative_path = os.path.relpath(path=local_path, start=local_dir)
-            s3_key = os.path.join(prefix, relative_path).replace('\\', '/')
-            logger.info(f'Uploading {local_path} to s3://{bucket_name}/{s3_key}')
-            s3_client.upload_file(Filename=local_path, Bucket=bucket_name, Key=s3_key)
+def upload_parquet_to_s3(s3_client: boto3.client, file_path: str, bucket_name: str, prefix: str) -> None:
+    """Uploads Parquet files at file_path to the specified S3 bucket and prefix."""
+    s3_key = file_path.replace('/tmp/', '').replace('\\', '/')
+    logger.info(f'Uploading {file_path} to s3://{bucket_name}/{s3_key}')
+    s3_client.upload_file(Filename=file_path, Bucket=bucket_name, Key=s3_key)
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
