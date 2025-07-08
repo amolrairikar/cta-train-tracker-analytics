@@ -368,7 +368,7 @@ module "cta_bucket_raw_data_lambda" {
   lambda_handler                 = "bucket_raw_data.lambda_handler"
   lambda_memory_size             = "256"
   lambda_runtime                 = "python3.12"
-  lambda_timeout                 = 10
+  lambda_timeout                 = 30
   lambda_execution_role_arn      = module.lambda_bucket_raw_data_execution_role.role_arn
   s3_bucket_name                 = "lambda-source-code-${data.aws_caller_identity.current.account_id}-bucket"
   s3_object_key                  = "cta_bucket_raw_data.zip"
